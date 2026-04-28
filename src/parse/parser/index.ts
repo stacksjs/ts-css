@@ -51,7 +51,7 @@ import type {
 } from '../types'
 import { CssList } from '../list'
 import type { Token } from '../tokenizer'
-import { decodeName, Tokenizer, TokenType } from '../tokenizer'
+import { decodeName, decodeString, Tokenizer, TokenType } from '../tokenizer'
 
 interface ParserState {
   source: string
@@ -618,8 +618,12 @@ function parseValueChild(s: ParserState): CssNode | null {
     }
     case TokenType.String: {
       consume(s)
-      const slice = tokenSlice(s, t)
-      const value = slice.length >= 2 ? slice.slice(1, slice.endsWith(slice[0]!) ? -1 : undefined) : ''
+      // Drop the surrounding quotes and decode escapes (`\"` → `"`,
+      // `\26 ` → `&`, etc.) so the AST holds the actual string value.
+      const innerStart = t.start + 1
+      const closesProperly = t.end - t.start >= 2 && s.source.charCodeAt(t.end - 1) === s.source.charCodeAt(t.start)
+      const innerEnd = closesProperly ? t.end - 1 : t.end
+      const value = decodeString(s.source, innerStart, innerEnd)
       const node: StringNode = { type: 'String', value, loc: loc(s, t, t) }
       return node
     }
@@ -937,8 +941,8 @@ function parseAttribute(s: ParserState): AttributeSelector | null {
     const v = peek(s)
     if (v.type === TokenType.String) {
       consume(s)
-      const slice = tokenSlice(s, v)
-      const text = slice.length >= 2 ? slice.slice(1, -1) : ''
+      const closesProperly = v.end - v.start >= 2 && s.source.charCodeAt(v.end - 1) === s.source.charCodeAt(v.start)
+      const text = decodeString(s.source, v.start + 1, closesProperly ? v.end - 1 : v.end)
       value = { type: 'String', value: text, loc: loc(s, v, v) }
     }
     else if (v.type === TokenType.Ident) {

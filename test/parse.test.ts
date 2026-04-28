@@ -124,6 +124,40 @@ describe('parse + generate round-trip', () => {
     expect(list.toArray()).toEqual([2, 3])
   })
 
+  it('round-trips strings with escape sequences', () => {
+    const cases = [
+      '.a{content:"with \\"quote\\" inside"}',
+      '.a{content:"line1\\a line2"}',
+      'a[data-x="\\"x\\""]{color:red}',
+    ]
+    for (const c of cases) {
+      const out1 = generate(parse(c))
+      const out2 = generate(parse(out1))
+      expect(out1).toBe(out2)
+    }
+  })
+
+  it('decodes hex escapes in string values', () => {
+    const ast = parse('.a{content:"\\26 B"}') as any
+    const decl = ast.children.first.block.children.first
+    const string = decl.value.children.first
+    expect(string.type).toBe('String')
+    expect(string.value).toBe('&B')
+  })
+
+  it('round-trips selector identifier escapes', () => {
+    const cases = [
+      '.\\26 B{color:red}',
+      '.foo\\30 bar{color:red}',
+      '.foo\\!bar{color:red}',
+    ]
+    for (const c of cases) {
+      const out1 = generate(parse(c))
+      const out2 = generate(parse(out1))
+      expect(out1).toBe(out2)
+    }
+  })
+
   it('survives nested forEach with mid-walk removal', () => {
     const list = new List<number>()
     list.fromArray([1, 2, 3, 4, 5])

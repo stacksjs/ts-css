@@ -47,12 +47,10 @@ export function generate(node: CssNode): string {
       let out = `[${node.name.name}`
       if (node.matcher && node.value) {
         out += node.matcher
-        if (node.value.type === 'String') {
-          out += `"${node.value.value.replace(/"/g, '\\"')}"`
-        }
-        else {
+        if (node.value.type === 'String')
+          out += `"${escapeStringContent(node.value.value)}"`
+        else
           out += node.value.name
-        }
       }
       if (node.flags)
         out += ` ${node.flags}`
@@ -84,19 +82,15 @@ export function generate(node: CssNode): string {
     case 'Dimension':
       return node.value + node.unit
     case 'String':
-      return `"${node.value.replace(/"/g, '\\"')}"`
+      return `"${escapeStringContent(node.value)}"`
     case 'Url':
       return /[\s"'()\\]/.test(node.value)
-        ? `url("${node.value.replace(/"/g, '\\"')}")`
+        ? `url("${escapeStringContent(node.value)}")`
         : `url(${node.value})`
     case 'Hash':
       return `#${node.name}`
-    case 'Operator': {
-      const v = node.value
-      if (v === ',' || v === ':')
-        return v
-      return v
-    }
+    case 'Operator':
+      return node.value
     case 'Function':
       return `${node.name}(${joinChildren(node.children, '')})`
     case 'Parentheses':
@@ -156,6 +150,27 @@ function joinChildren(list: { head: any, [Symbol.iterator]: any }, separator: st
       out += separator
     first = false
     out += text
+  }
+  return out
+}
+
+/**
+ * Escape `"` and `\\` for CSS string output. The parser stores decoded
+ * string values in the AST, so the generator is responsible for putting
+ * the escapes back. Control chars (< 0x20 / DEL) become hex escapes.
+ */
+function escapeStringContent(s: string): string {
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const ch = s.charCodeAt(i)
+    if (ch === 92 /* \\ */)
+      out += '\\\\'
+    else if (ch === 34 /* " */)
+      out += '\\"'
+    else if (ch < 32 || ch === 127)
+      out += `\\${ch.toString(16)} `
+    else
+      out += s[i]
   }
   return out
 }
