@@ -56,6 +56,38 @@ const COLOR_PROPERTIES: ReadonlySet<string> = new Set([
   'scrollbar-color',
 ])
 
+/**
+ * Drop redundant WhiteSpace nodes inside `Parentheses` and `Function`
+ * containers — adjacent to `:` `,` `/` operators and at the boundaries.
+ * Mirrors csso's compactor for media-feature / function args.
+ */
+function compactWhitespace(ast: CssNode): void {
+  walk(ast, function (node) {
+    if (node.type !== 'Parentheses' && node.type !== 'Function')
+      return
+    const list = node.children as any
+    // 1. trim leading
+    while (list.head && list.head.data.type === 'WhiteSpace')
+      list.remove(list.head)
+    // 2. trim trailing
+    while (list.tail && list.tail.data.type === 'WhiteSpace')
+      list.remove(list.tail)
+    // 3. drop WhiteSpace adjacent to `: , /`-style operators
+    let cur = list.head
+    while (cur) {
+      const next = cur.next
+      const data = cur.data
+      if (data.type === 'WhiteSpace') {
+        const prevIsOp = cur.prev && cur.prev.data.type === 'Operator'
+        const nextIsOp = next && next.data.type === 'Operator'
+        if (prevIsOp || nextIsOp)
+          list.remove(cur)
+      }
+      cur = next
+    }
+  })
+}
+
 export function compressTree(ast: CssNode): void {
   walk(ast, function compressVisitor(node, item, list) {
     switch (node.type) {
@@ -108,4 +140,5 @@ export function compressTree(ast: CssNode): void {
         return
     }
   })
+  compactWhitespace(ast)
 }

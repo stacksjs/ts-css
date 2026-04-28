@@ -273,16 +273,17 @@ function parseAtrule(s: ParserState): Atrule | null {
         // nothing useful or throws. No more hardcoded at-rule whitelist:
         // custom at-rules (`@property`, `@scope`, `@layer`, future specs)
         // get a parsed prelude too.
+        //
+        // Whitespace IS preserved in at-rule preludes: media queries treat
+        // it as significant (`screen and (...)`), and so do `@layer foo, bar`
+        // and `@import url('x') screen`. `parseValueChild` emits a single
+        // WhiteSpace node per whitespace run which the generator turns
+        // back into one space.
         try {
           const sub = makeState(raw, { positions: false })
           sub.onParseError = s.onParseError
           const children = newList<CssNode>()
           while (peekType(sub) !== TokenType.EOF) {
-            const tok = sub.tokens[sub.pos]!
-            if (tok.type === TokenType.WhiteSpace) {
-              sub.pos++
-              continue
-            }
             const node = parseValueChild(sub)
             if (node)
               children.appendData(node)
@@ -329,6 +330,11 @@ const AT_RULES_WITH_NESTED_RULES: ReadonlySet<string> = new Set([
   'scope',
   'starting-style',
   '-moz-document',
+  // keyframes — children are rules with `from` / `to` / `50%` preludes
+  'keyframes',
+  '-webkit-keyframes',
+  '-moz-keyframes',
+  '-o-keyframes',
 ])
 
 function parseAtrulePreludeContext(s: ParserState): AtrulePrelude {
@@ -798,6 +804,18 @@ function parseSelectorSegment(s: ParserState): CssNode | null {
   const t = peek(s)
   switch (t.type) {
     case TokenType.Ident: {
+      consume(s)
+      const node: TypeSelector = { type: 'TypeSelector', name: tokenSlice(s, t), loc: loc(s, t, t) }
+      return node
+    }
+    // `@keyframes` rule preludes (`0%`, `100%`) parse as Percentage tokens.
+    // Treat them as a TypeSelector so the round-trip preserves the literal.
+    case TokenType.Percentage: {
+      consume(s)
+      const node: TypeSelector = { type: 'TypeSelector', name: tokenSlice(s, t), loc: loc(s, t, t) }
+      return node
+    }
+    case TokenType.Number: {
       consume(s)
       const node: TypeSelector = { type: 'TypeSelector', name: tokenSlice(s, t), loc: loc(s, t, t) }
       return node

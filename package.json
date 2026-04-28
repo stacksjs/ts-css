@@ -81,6 +81,7 @@
     "fresh": "bunx rimraf node_modules/ bun.lock && bun i",
     "prepublishOnly": "bun --bun run build && bun run compile:all && bun run zip",
     "test": "bun test",
+    "bench": "bun bench/index.bench.ts",
     "lint": "bunx --bun pickier .",
     "lint:fix": "bunx --bun pickier . --fix",
     "changelog": "bunx logsmith --verbose",
@@ -101,7 +102,14 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "better-dx": "^0.2.7"
+    "@types/css-tree": "^2.3.11",
+    "@types/csso": "^5.0.4",
+    "better-dx": "^0.2.7",
+    "css-select": "^7.0.0",
+    "css-tree": "^3.2.1",
+    "css-what": "^8.0.0",
+    "csso": "^5.0.5",
+    "mitata": "^1.0.34"
   },
   "git-hooks": {
     "pre-commit": {

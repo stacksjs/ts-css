@@ -175,6 +175,19 @@ import { selectAll } from '@stacksjs/ts-css/select'
 import { minify } from '@stacksjs/ts-css/optimize'
 ```
 
+## Performance
+
+End-to-end (parse → minify → generate) on a 6 KB representative fixture:
+
+| Pipeline                    | Time/iter |
+| --------------------------- | --------- |
+| `ts-css.minify(source)`     | **441 µs** |
+| `csso.minify(source)`       | 847 µs    |
+
+→ **1.92× faster end-to-end** with zero runtime deps. Per-API breakdown
+in [`docs/benchmarks.md`](./docs/benchmarks.md). Run them yourself with
+`bun run bench`.
+
 ## Documentation
 
 Full docs: see [`./docs`](./docs) or run `bun run dev:docs` to start the
@@ -186,6 +199,7 @@ local docs site.
 - [Selector matcher API](./docs/api/select.md)
 - [Optimizer API](./docs/api/optimize.md)
 - [Migration guide](./docs/migration.md)
+- [Benchmarks](./docs/benchmarks.md)
 
 ## License
 

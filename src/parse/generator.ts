@@ -13,7 +13,7 @@ export function generate(node: CssNode): string {
     case 'Rule':
       return `${generate(node.prelude)}{${generate(node.block as CssNode)}}`
     case 'Block':
-      return joinChildren(node.children, ';')
+      return joinBlockChildren(node.children)
     case 'Atrule': {
       let out = `@${node.name}`
       if (node.prelude) {
@@ -100,7 +100,12 @@ export function generate(node: CssNode): string {
     case 'Raw':
       return node.value
     case 'Comment':
-      return `/*${node.value}*/`
+      // Match css-tree default: comments are parsed but not regenerated
+      // (so consumers like csso can decide whether to keep them by
+      // walking the AST first and removing the ones they don't want).
+      // `!`-comments are emitted so license headers survive a round-trip
+      // when nothing has explicitly removed them from the tree.
+      return node.value.startsWith('!') ? `/*${node.value}*/` : ''
     case 'WhiteSpace':
       return ' '
     case 'CDO':
@@ -144,14 +149,71 @@ export function generate(node: CssNode): string {
 function joinChildren(list: { head: any, [Symbol.iterator]: any }, separator: string): string {
   let out = ''
   let first = true
-  for (const child of list as Iterable<CssNode>) {
+  let prev: CssNode | null = null
+  // Track lookahead so we can drop WhiteSpace adjacent to certain
+  // operators (`:` / `,` / `/`) — css-tree compact output behaviour.
+  const arr: CssNode[] = []
+  for (const child of list as Iterable<CssNode>)
+    arr.push(child)
+
+  for (let i = 0; i < arr.length; i++) {
+    const child = arr[i]!
+    if (child.type === 'WhiteSpace') {
+      const prevNode = prev
+      const nextNode = arr[i + 1] ?? null
+      if (isCompactOperator(prevNode) || isCompactOperator(nextNode))
+        continue
+    }
     const text = generate(child)
-    if (!first && separator)
+    if (!text)
+      continue
+    if (!first && separator && !isStructuralSeparator(prev))
       out += separator
     first = false
     out += text
+    prev = child
   }
   return out
+}
+
+/**
+ * Block children mix Declarations (need `;` separator) and nested Rules /
+ * Atrules (need no separator). `;` only goes between Declarations.
+ */
+function joinBlockChildren(list: { head: any, [Symbol.iterator]: any }): string {
+  let out = ''
+  let prev: CssNode | null = null
+  for (const child of list as Iterable<CssNode>) {
+    const text = generate(child)
+    if (!text)
+      continue
+    if (prev && needsSemicolon(prev, child))
+      out += ';'
+    out += text
+    prev = child
+  }
+  return out
+}
+
+function needsSemicolon(prev: CssNode, next: CssNode): boolean {
+  // Only put a `;` between two declarations (or a declaration and the
+  // next sibling). Rules/Atrules close themselves with `}` or `;`.
+  return prev.type === 'Declaration' && next.type !== 'Comment'
+}
+
+function isCompactOperator(node: CssNode | null): boolean {
+  if (!node || node.type !== 'Operator')
+    return false
+  const v = node.value
+  return v === ':' || v === ',' || v === '/'
+}
+
+function isStructuralSeparator(node: CssNode | null): boolean {
+  if (!node)
+    return false
+  // Operators (`,`) and Combinators handle their own spacing — don't add
+  // an extra separator after them.
+  return node.type === 'Operator' || node.type === 'Combinator'
 }
 
 /**
