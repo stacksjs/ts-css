@@ -97,7 +97,7 @@
     "format:fix": "bunx --bun pickier . --format --write"
   },
   "dependencies": {
-    "bunfig": "^0.15.6"
+    "bunfig": "^0.15.8"
   },
   "devDependencies": {
     "@types/bun": "latest",
