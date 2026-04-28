@@ -41,29 +41,42 @@ export interface Token {
   type: TokenType
   start: number
   end: number
-  source: string
 }
 
 const REPLACEMENT = 0xFFFD
 
+// ----- pre-built character-class lookup -----
+// One byte per char code (0-127). Each bit is a class:
+//   bit 0 — whitespace (space/tab/CR/LF/FF)
+//   bit 1 — digit (0-9)
+//   bit 2 — hex digit (0-9 a-f A-F)
+//   bit 3 — name-start (letter / underscore — non-ASCII handled separately)
+//   bit 4 — newline (CR / LF / FF)
+const CHAR_CLASS = (() => {
+  const t = new Uint8Array(128)
+  for (let c = 0; c < 128; c++) {
+    let bits = 0
+    if (c === 32 || c === 9 || c === 10 || c === 12 || c === 13)
+      bits |= 1
+    if (c >= 48 && c <= 57)
+      bits |= 2
+    if ((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102))
+      bits |= 4
+    if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 95)
+      bits |= 8
+    if (c === 10 || c === 12 || c === 13)
+      bits |= 16
+    t[c] = bits
+  }
+  return t
+})()
+
 function isDigit(code: number): boolean {
-  return code >= 48 && code <= 57
+  return code < 128 && (CHAR_CLASS[code]! & 2) !== 0
 }
 
 function isHexDigit(code: number): boolean {
-  return isDigit(code) || (code >= 65 && code <= 70) || (code >= 97 && code <= 102)
-}
-
-function isUppercaseLetter(code: number): boolean {
-  return code >= 65 && code <= 90
-}
-
-function isLowercaseLetter(code: number): boolean {
-  return code >= 97 && code <= 122
-}
-
-function isLetter(code: number): boolean {
-  return isUppercaseLetter(code) || isLowercaseLetter(code)
+  return code < 128 && (CHAR_CLASS[code]! & 4) !== 0
 }
 
 function isNonAscii(code: number): boolean {
@@ -71,11 +84,11 @@ function isNonAscii(code: number): boolean {
 }
 
 function isNameStart(code: number): boolean {
-  return isLetter(code) || isNonAscii(code) || code === 95 /* _ */
+  return code >= 0x80 || (code < 128 && (CHAR_CLASS[code]! & 8) !== 0)
 }
 
 function isName(code: number): boolean {
-  return isNameStart(code) || isDigit(code) || code === 45 /* - */
+  return code === 45 /* - */ || code >= 0x80 || (code < 128 && (CHAR_CLASS[code]! & (2 | 8)) !== 0)
 }
 
 function isNonPrintable(code: number): boolean {
@@ -83,11 +96,11 @@ function isNonPrintable(code: number): boolean {
 }
 
 function isNewline(code: number): boolean {
-  return code === 10 || code === 13 || code === 12
+  return code < 128 && (CHAR_CLASS[code]! & 16) !== 0
 }
 
 function isWhitespace(code: number): boolean {
-  return isNewline(code) || code === 9 || code === 32
+  return code < 128 && (CHAR_CLASS[code]! & 1) !== 0
 }
 
 function isValidEscape(c1: number, c2: number): boolean {
@@ -125,17 +138,59 @@ function startsNumber(c1: number, c2: number, c3: number): boolean {
 export class Tokenizer {
   source: string
   offset = 0
-  tokens: Token[] = []
+  /**
+   * Parallel typed-array storage. The parser walks `count` tokens by
+   * index; `types[i]` / `starts[i]` / `ends[i]` are the three fields of
+   * the i-th token. This avoids one `Object` allocation per token, which
+   * matters a lot on parse — for a 6 KB stylesheet there are ~1500 tokens.
+   */
+  types: Uint8Array
+  starts: Uint32Array
+  ends: Uint32Array
+  count = 0
+  /** Lazy-built `Token`-shaped array — only filled if a consumer
+   *  reads `.tokens`. Internally the parser uses the typed arrays. */
+  private _tokens: Token[] | null = null
   /** Offset where each line starts; used for line/col reporting. */
   lineStarts: number[] = [0]
 
   constructor(source: string) {
     this.source = source
+    // Estimate token count: avg ~4 chars per token. Better to over-allocate
+    // a little than to have to grow.
+    const cap = Math.max(64, source.length >> 1)
+    this.types = new Uint8Array(cap)
+    this.starts = new Uint32Array(cap)
+    this.ends = new Uint32Array(cap)
     this.tokenize()
   }
 
+  /** Lazy `Token[]` view for backwards-compat. */
+  get tokens(): Token[] {
+    if (this._tokens != null)
+      return this._tokens
+    const out: Token[] = Array.from({ length: this.count })
+    for (let i = 0; i < this.count; i++)
+      out[i] = { type: this.types[i]! as TokenType, start: this.starts[i]!, end: this.ends[i]! }
+    this._tokens = out
+    return out
+  }
+
   private addToken(type: TokenType, start: number, end: number): void {
-    this.tokens.push({ type, start, end, source: this.source })
+    if (this.count >= this.types.length)
+      this.grow()
+    this.types[this.count] = type
+    this.starts[this.count] = start
+    this.ends[this.count] = end
+    this.count++
+  }
+
+  private grow(): void {
+    const oldLen = this.types.length
+    const newLen = oldLen * 2
+    const t = new Uint8Array(newLen); t.set(this.types); this.types = t
+    const s = new Uint32Array(newLen); s.set(this.starts); this.starts = s
+    const e = new Uint32Array(newLen); e.set(this.ends); this.ends = e
   }
 
   private tokenize(): void {

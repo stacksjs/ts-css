@@ -40,6 +40,30 @@ describe('parse + generate round-trip', () => {
     expect(ast.children.first.name).toBe('media')
   })
 
+  it('parses CSS Nesting (& mid-selector)', () => {
+    const ast = parse('.foo { color: red; &.bar { color: blue } }') as any
+    const blockChildren = ast.children.first.block.children.toArray().map((n: any) => n.type)
+    expect(blockChildren).toEqual(['Declaration', 'Rule'])
+  })
+
+  it('parses namespace selectors svg|circle', () => {
+    const ast = parse('svg|circle{}') as any
+    const tag = ast.children.first.prelude.children.first.children.first
+    expect(tag.type).toBe('TypeSelector')
+    expect(tag.name).toBe('svg|circle')
+  })
+
+  it('promotes Number/Number to Ratio in media queries', () => {
+    const ast = parse('@media (aspect-ratio: 16/9) {}') as any
+    let foundRatio: any = null
+    walk(ast, (n) => {
+      if (n.type === 'Ratio') foundRatio = n
+    })
+    expect(foundRatio).not.toBeNull()
+    expect(foundRatio.left.value).toBe('16')
+    expect(foundRatio.right.value).toBe('9')
+  })
+
   it('parses unknown at-rule preludes (no hardcoded whitelist)', () => {
     const ast = parse('@my-custom rule (foo) { .a { color: red } }') as any
     const at = ast.children.first

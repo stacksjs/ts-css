@@ -55,7 +55,12 @@ import { decodeName, decodeString, Tokenizer, TokenType } from '../tokenizer'
 
 interface ParserState {
   source: string
-  tokens: Token[]
+  // Parallel typed-array storage from the tokenizer. Direct reads avoid
+  // per-token Object allocation in the hot loop.
+  types: Uint8Array
+  starts: Uint32Array
+  ends: Uint32Array
+  count: number
   pos: number
   positions: boolean
   filename: string | undefined
@@ -72,7 +77,10 @@ function makeState(source: string, options: ParseOptions): ParserState {
   const tokenizer = new Tokenizer(source)
   return {
     source,
-    tokens: tokenizer.tokens,
+    types: tokenizer.types,
+    starts: tokenizer.starts,
+    ends: tokenizer.ends,
+    count: tokenizer.count,
     pos: 0,
     positions: options.positions ?? false,
     filename: options.filename,
@@ -86,17 +94,26 @@ function makeState(source: string, options: ParseOptions): ParserState {
 }
 
 // ----- token-stream helpers -----
+// Read directly from the parallel typed arrays. `peek(s)` materialises a
+// `Token` view object lazily — most parser code only needs `.type` /
+// `.start` / `.end` which the helpers below expose without an alloc.
 
 function peekType(s: ParserState): TokenType {
-  return s.tokens[s.pos]!.type
+  return s.types[s.pos]! as TokenType
+}
+
+function peekStart(s: ParserState): number {
+  return s.starts[s.pos]!
 }
 
 function peek(s: ParserState): Token {
-  return s.tokens[s.pos]!
+  const i = s.pos
+  return { type: s.types[i]! as TokenType, start: s.starts[i]!, end: s.ends[i]! }
 }
 
 function consume(s: ParserState): Token {
-  return s.tokens[s.pos++]!
+  const i = s.pos++
+  return { type: s.types[i]! as TokenType, start: s.starts[i]!, end: s.ends[i]! }
 }
 
 function tokenSlice(s: ParserState, t: Token): string {
@@ -104,8 +121,10 @@ function tokenSlice(s: ParserState, t: Token): string {
 }
 
 function skipWhitespace(s: ParserState): void {
-  while (s.pos < s.tokens.length) {
-    const t = s.tokens[s.pos]!.type
+  const types = s.types
+  const count = s.count
+  while (s.pos < count) {
+    const t = types[s.pos]!
     if (t === TokenType.WhiteSpace || t === TokenType.Comment)
       s.pos++
     else
@@ -114,7 +133,9 @@ function skipWhitespace(s: ParserState): void {
 }
 
 function skipWhitespaceOnly(s: ParserState): void {
-  while (s.pos < s.tokens.length && s.tokens[s.pos]!.type === TokenType.WhiteSpace)
+  const types = s.types
+  const count = s.count
+  while (s.pos < count && types[s.pos]! === TokenType.WhiteSpace)
     s.pos++
 }
 
@@ -212,23 +233,26 @@ function parseRawAsValue(s: ParserState): Raw {
 function parseStyleSheet(s: ParserState): StyleSheet {
   const startTok = peek(s)
   const children = newList<CssNode>()
-  while (peekType(s) !== TokenType.EOF) {
-    const tok = peek(s)
-    if (tok.type === TokenType.WhiteSpace) {
+  // Hot loop: read type from the typed array directly to avoid the
+  // per-iteration Token-object alloc that `peek()` would do.
+  while (s.types[s.pos]! !== TokenType.EOF) {
+    const t = s.types[s.pos]!
+    if (t === TokenType.WhiteSpace) {
       s.pos++
       continue
     }
-    if (tok.type === TokenType.Comment) {
+    if (t === TokenType.Comment) {
+      const tok: Token = { type: TokenType.Comment, start: s.starts[s.pos]!, end: s.ends[s.pos]! }
       const node = makeComment(s, tok)
-      consume(s)
+      s.pos++
       children.appendData(node)
       continue
     }
-    if (tok.type === TokenType.CDO || tok.type === TokenType.CDC) {
-      consume(s)
+    if (t === TokenType.CDO || t === TokenType.CDC) {
+      s.pos++
       continue
     }
-    if (tok.type === TokenType.AtKeyword) {
+    if (t === TokenType.AtKeyword) {
       const at = parseAtrule(s)
       if (at)
         children.appendData(at)
@@ -237,7 +261,10 @@ function parseStyleSheet(s: ParserState): StyleSheet {
     const r = parseRule(s)
     children.appendData(r)
   }
-  const endTok = s.tokens[s.tokens.length - 1]!
+  const lastIdx = s.count - 1
+  const endTok: Token = lastIdx >= 0
+    ? { type: s.types[lastIdx]! as TokenType, start: s.starts[lastIdx]!, end: s.ends[lastIdx]! }
+    : { type: TokenType.EOF, start: 0, end: 0 }
   return { type: 'StyleSheet', children, loc: loc(s, startTok, endTok) }
 }
 
@@ -288,6 +315,10 @@ function parseAtrule(s: ParserState): Atrule | null {
             if (node)
               children.appendData(node)
           }
+          // The @media `(aspect-ratio: 16/9)` form lives inside Parens
+          // here — promote the Number/Operator(/)/Number triples in
+          // every container to Ratio nodes, recursively.
+          promoteRatiosDeep(children)
           if (children.isEmpty)
             prelude = rawNode(raw, preludeStart, preludeEndTok, s)
           else
@@ -358,23 +389,27 @@ function parseAtrulePreludeContext(s: ParserState): AtrulePrelude {
 function parseRule(s: ParserState): Rule {
   const startTok = peek(s)
 
-  // collect prelude until {
-  const preludeStart = peek(s)
-  let preludeEnd = preludeStart
-  while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.LeftCurlyBracket) {
-    preludeEnd = consume(s)
-  }
-  const preludeText = s.source.slice(preludeStart.start, preludeEnd.end).trim()
   let prelude: SelectorList | Raw
-  if (s.parseRulePrelude && preludeText.length > 0) {
-    const subState = makeState(preludeText, { positions: false })
-    prelude = parseSelectorList(subState)
+  if (s.parseRulePrelude) {
+    // Parse the selector list straight from the existing token stream —
+    // `parseSelectorList` stops at `,`-terminated boundaries internally and
+    // at the leading `{` of the block, so no re-tokenization is needed.
+    prelude = parseSelectorList(s)
   }
   else {
+    // Raw fallback: collect tokens up to `{` and slice the text.
+    const preludeStart = peek(s)
+    let preludeEnd = preludeStart
+    while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.LeftCurlyBracket)
+      preludeEnd = consume(s)
+    const preludeText = s.source.slice(preludeStart.start, preludeEnd.end).trim()
     prelude = rawNode(preludeText, preludeStart, preludeEnd, s)
   }
 
-  const block = parseBlock(s, false)
+  // Rules support CSS Nesting (`.foo { color: red; & .bar { color: blue } }`)
+  // — `allowNested` flips on the lookahead that distinguishes a nested
+  // rule from a declaration with the same opening tokens.
+  const block = parseBlock(s, true)
   return { type: 'Rule', prelude, block, loc: loc(s, startTok, peek(s)) }
 }
 
@@ -386,17 +421,19 @@ function parseBlock(s: ParserState, allowNested: boolean = false): Block {
     return { type: 'Block', children: newList<CssNode>(), loc: emptyLoc(s) }
   consume(s) // {
   const children = newList<CssNode>()
-  while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.RightCurlyBracket) {
-    const t = peek(s)
-    if (t.type === TokenType.WhiteSpace) {
+  while (s.types[s.pos]! !== TokenType.EOF && s.types[s.pos]! !== TokenType.RightCurlyBracket) {
+    const t = s.types[s.pos]!
+    if (t === TokenType.WhiteSpace) {
       s.pos++
       continue
     }
-    if (t.type === TokenType.Comment) {
-      children.appendData(makeComment(s, consume(s)))
+    if (t === TokenType.Comment) {
+      const tok: Token = { type: TokenType.Comment, start: s.starts[s.pos]!, end: s.ends[s.pos]! }
+      s.pos++
+      children.appendData(makeComment(s, tok))
       continue
     }
-    if (t.type === TokenType.AtKeyword) {
+    if (t === TokenType.AtKeyword) {
       const at = parseAtrule(s)
       if (at)
         children.appendData(at)
@@ -410,8 +447,8 @@ function parseBlock(s: ParserState, allowNested: boolean = false): Block {
     const decl = parseDeclaration(s)
     if (decl)
       children.appendData(decl)
-    if (peekType(s) === TokenType.Semicolon)
-      consume(s)
+    if (s.types[s.pos]! === TokenType.Semicolon)
+      s.pos++
   }
   if (peekType(s) === TokenType.RightCurlyBracket)
     consume(s)
@@ -426,8 +463,10 @@ function lookahead(s: ParserState, predicate: (s: ParserState) => boolean): bool
 }
 
 function isCurlyAheadBeforeSemicolon(s: ParserState): boolean {
-  while (s.pos < s.tokens.length) {
-    const t = s.tokens[s.pos]!.type
+  const types = s.types
+  const count = s.count
+  while (s.pos < count) {
+    const t = types[s.pos]!
     if (t === TokenType.LeftCurlyBracket)
       return true
     if (t === TokenType.Semicolon || t === TokenType.RightCurlyBracket || t === TokenType.EOF)
@@ -519,9 +558,11 @@ function parseDeclaration(s: ParserState): Declaration | null {
       // potential !important — preserve current valueEndTok and try to advance
       const before = valueEndTok
       s.pos++ // consume the `!`
-      while (s.pos < s.tokens.length && s.tokens[s.pos]!.type === TokenType.WhiteSpace)
+      while (s.pos < s.count && s.types[s.pos]! === TokenType.WhiteSpace)
         s.pos++
-      const next = s.tokens[s.pos]
+      const next: Token | null = s.pos < s.count
+        ? { type: s.types[s.pos]! as TokenType, start: s.starts[s.pos]!, end: s.ends[s.pos]! }
+        : null
       if (next && next.type === TokenType.Ident && s.source.slice(next.start, next.end).toLowerCase() === 'important') {
         importantTok = next
         valueEndTok = before // exclude the `!important` from the value text
@@ -585,7 +626,62 @@ function parseValueChildren(s: ParserState): Value {
     if (node)
       children.appendData(node)
   }
+  promoteRatios(children)
   return { type: 'Value', children, loc: loc(s, startTok, peek(s)) }
+}
+
+/**
+ * Recursive ratio promotion — walk every nested children list (Function,
+ * Parentheses, AtrulePrelude, etc.) and run `promoteRatios` on each.
+ */
+function promoteRatiosDeep(list: CssList<CssNode>): void {
+  for (const child of list) {
+    if ('children' in child && (child as any).children instanceof CssList)
+      promoteRatiosDeep((child as any).children)
+  }
+  promoteRatios(list)
+}
+
+/**
+ * Walk a children list and promote `Number / Number` sequences (with
+ * optional WhiteSpace around the slash) into a single `Ratio` node.
+ * Mirrors css-tree's handling of `aspect-ratio: 16/9`.
+ */
+function promoteRatios(list: CssList<CssNode>): void {
+  let cur = list.head
+  while (cur) {
+    if (cur.data.type === 'Number') {
+      // skip whitespace
+      let slashItem = cur.next
+      while (slashItem && slashItem.data.type === 'WhiteSpace')
+        slashItem = slashItem.next
+      if (slashItem && slashItem.data.type === 'Operator' && (slashItem.data as { value: string }).value === '/') {
+        let rightItem = slashItem.next
+        while (rightItem && rightItem.data.type === 'WhiteSpace')
+          rightItem = rightItem.next
+        if (rightItem && rightItem.data.type === 'Number') {
+          // Build Ratio and splice it in.
+          const ratio: CssNode = {
+            type: 'Ratio',
+            left: cur.data as any,
+            right: rightItem.data as any,
+            loc: null,
+          }
+          // Remove items between cur (exclusive end) and rightItem (inclusive)
+          let toRemove = cur.next
+          while (toRemove && toRemove !== rightItem.next) {
+            const nxt = toRemove.next
+            list.remove(toRemove)
+            toRemove = nxt
+          }
+          list.replace(cur, list.createItem(ratio))
+          cur = list.head // restart — list pointer changed
+          continue
+        }
+      }
+    }
+    cur = cur.next
+  }
 }
 
 function parseValueChild(s: ParserState): CssNode | null {
@@ -805,6 +901,30 @@ function parseSelectorSegment(s: ParserState): CssNode | null {
   switch (t.type) {
     case TokenType.Ident: {
       consume(s)
+      // Namespace prefix? `svg|circle` → TypeSelector(name="svg|circle").
+      // We keep the prefix as part of the name (matches css-tree shape).
+      if (peekType(s) === TokenType.Delim && s.source[peek(s).start] === '|'
+        && s.source[peek(s).start + 1] !== '=') {
+        consume(s)
+        if (peekType(s) === TokenType.Ident) {
+          const local = consume(s)
+          const node: TypeSelector = {
+            type: 'TypeSelector',
+            name: `${tokenSlice(s, t)}|${tokenSlice(s, local)}`,
+            loc: loc(s, t, local),
+          }
+          return node
+        }
+        if (peekType(s) === TokenType.Delim && s.source[peek(s).start] === '*') {
+          const star = consume(s)
+          const node: TypeSelector = {
+            type: 'TypeSelector',
+            name: `${tokenSlice(s, t)}|*`,
+            loc: loc(s, t, star),
+          }
+          return node
+        }
+      }
       const node: TypeSelector = { type: 'TypeSelector', name: tokenSlice(s, t), loc: loc(s, t, t) }
       return node
     }
