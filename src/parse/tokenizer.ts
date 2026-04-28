@@ -452,20 +452,24 @@ export class Tokenizer {
     const src = this.source
     const nameEnd = this.consumeName(start)
     const c = src.charCodeAt(nameEnd)
-    const lower = src.slice(start, nameEnd).toLowerCase()
-    if (lower === 'url' && c === 40 /* ( */) {
-      // skip opening (
-      let i = nameEnd + 1
-      // skip whitespace
-      while (i < src.length && isWhitespace(src.charCodeAt(i)))
-        i++
-      const next = src.charCodeAt(i)
-      if (next === 34 || next === 39) {
-        // function url("...")
-        this.addToken(TokenType.Function, start, nameEnd + 1)
-        return nameEnd + 1
+    // Only `url` (3 chars) needs special handling; avoid the
+    // `slice(...).toLowerCase()` allocation per ident in the hot path.
+    if (c === 40 /* ( */ && nameEnd - start === 3) {
+      const c0 = src.charCodeAt(start) | 32
+      const c1 = src.charCodeAt(start + 1) | 32
+      const c2 = src.charCodeAt(start + 2) | 32
+      if (c0 === 117 && c1 === 114 && c2 === 108) {
+        let i = nameEnd + 1
+        while (i < src.length && isWhitespace(src.charCodeAt(i)))
+          i++
+        const next = src.charCodeAt(i)
+        if (next === 34 || next === 39) {
+          // function url("...")
+          this.addToken(TokenType.Function, start, nameEnd + 1)
+          return nameEnd + 1
+        }
+        return this.consumeUrl(start, nameEnd)
       }
-      return this.consumeUrl(start, nameEnd)
     }
     if (c === 40 /* ( */) {
       this.addToken(TokenType.Function, start, nameEnd + 1)
@@ -573,8 +577,19 @@ export class Tokenizer {
  *   - any other `\<char>` → `<char>`
  */
 export function decodeString(source: string, start: number, end: number): string {
-  let out = ''
-  let i = start
+  // Fast path: no escapes → return the slice directly. The vast majority of
+  // CSS strings/identifiers have no backslash escapes, so a one-pass scan
+  // saves us the per-char concat allocation that the slow path does.
+  for (let k = start; k < end; k++) {
+    if (source.charCodeAt(k) === 92 /* \\ */)
+      return decodeStringSlow(source, start, end, k)
+  }
+  return source.slice(start, end)
+}
+
+function decodeStringSlow(source: string, start: number, end: number, firstEscape: number): string {
+  let out = source.slice(start, firstEscape)
+  let i = firstEscape
   while (i < end) {
     const c = source.charCodeAt(i)
     if (c !== 92 /* \\ */) {
@@ -622,8 +637,17 @@ export function decodeString(source: string, start: number, end: number): string
 }
 
 export function decodeName(source: string, start: number, end: number): string {
-  let out = ''
-  let i = start
+  // Fast path: no escapes → return the slice directly.
+  for (let k = start; k < end; k++) {
+    if (source.charCodeAt(k) === 92 /* \\ */)
+      return decodeNameSlow(source, start, end, k)
+  }
+  return source.slice(start, end)
+}
+
+function decodeNameSlow(source: string, start: number, end: number, firstEscape: number): string {
+  let out = source.slice(start, firstEscape)
+  let i = firstEscape
   while (i < end) {
     const c = source.charCodeAt(i)
     if (c !== 92 /* \\ */) {

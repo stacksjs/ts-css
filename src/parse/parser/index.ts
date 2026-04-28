@@ -61,6 +61,13 @@ interface ParserState {
   starts: Uint32Array
   ends: Uint32Array
   count: number
+  /**
+   * Effective end of token stream visible to the parser. Equals `count` for
+   * normal parsing; gets temporarily lowered when we recurse into a
+   * sub-range (e.g. a declaration's value tokens) so the parser sees
+   * "virtual EOF" at the right boundary without re-tokenizing.
+   */
+  end: number
   pos: number
   positions: boolean
   filename: string | undefined
@@ -81,6 +88,7 @@ function makeState(source: string, options: ParseOptions): ParserState {
     starts: tokenizer.starts,
     ends: tokenizer.ends,
     count: tokenizer.count,
+    end: tokenizer.count,
     pos: 0,
     positions: options.positions ?? false,
     filename: options.filename,
@@ -99,7 +107,7 @@ function makeState(source: string, options: ParseOptions): ParserState {
 // `.start` / `.end` which the helpers below expose without an alloc.
 
 function peekType(s: ParserState): TokenType {
-  return s.types[s.pos]! as TokenType
+  return s.pos < s.end ? (s.types[s.pos]! as TokenType) : TokenType.EOF
 }
 
 function peekStart(s: ParserState): number {
@@ -108,11 +116,15 @@ function peekStart(s: ParserState): number {
 
 function peek(s: ParserState): Token {
   const i = s.pos
+  if (i >= s.end)
+    return { type: TokenType.EOF, start: s.starts[i]! ?? s.source.length, end: s.ends[i]! ?? s.source.length }
   return { type: s.types[i]! as TokenType, start: s.starts[i]!, end: s.ends[i]! }
 }
 
 function consume(s: ParserState): Token {
   const i = s.pos++
+  if (i >= s.end)
+    return { type: TokenType.EOF, start: s.starts[i]! ?? s.source.length, end: s.ends[i]! ?? s.source.length }
   return { type: s.types[i]! as TokenType, start: s.starts[i]!, end: s.ends[i]! }
 }
 
@@ -122,8 +134,8 @@ function tokenSlice(s: ParserState, t: Token): string {
 
 function skipWhitespace(s: ParserState): void {
   const types = s.types
-  const count = s.count
-  while (s.pos < count) {
+  const end = s.end
+  while (s.pos < end) {
     const t = types[s.pos]!
     if (t === TokenType.WhiteSpace || t === TokenType.Comment)
       s.pos++
@@ -134,8 +146,8 @@ function skipWhitespace(s: ParserState): void {
 
 function skipWhitespaceOnly(s: ParserState): void {
   const types = s.types
-  const count = s.count
-  while (s.pos < count && types[s.pos]! === TokenType.WhiteSpace)
+  const end = s.end
+  while (s.pos < end && types[s.pos]! === TokenType.WhiteSpace)
     s.pos++
 }
 
@@ -233,10 +245,12 @@ function parseRawAsValue(s: ParserState): Raw {
 function parseStyleSheet(s: ParserState): StyleSheet {
   const startTok = peek(s)
   const children = newList<CssNode>()
+  const types = s.types
+  const end = s.end
   // Hot loop: read type from the typed array directly to avoid the
   // per-iteration Token-object alloc that `peek()` would do.
-  while (s.types[s.pos]! !== TokenType.EOF) {
-    const t = s.types[s.pos]!
+  while (s.pos < end) {
+    const t = types[s.pos]!
     if (t === TokenType.WhiteSpace) {
       s.pos++
       continue
@@ -248,6 +262,8 @@ function parseStyleSheet(s: ParserState): StyleSheet {
       children.appendData(node)
       continue
     }
+    if (t === TokenType.EOF)
+      break
     if (t === TokenType.CDO || t === TokenType.CDC) {
       s.pos++
       continue
@@ -261,7 +277,7 @@ function parseStyleSheet(s: ParserState): StyleSheet {
     const r = parseRule(s)
     children.appendData(r)
   }
-  const lastIdx = s.count - 1
+  const lastIdx = s.end - 1
   const endTok: Token = lastIdx >= 0
     ? { type: s.types[lastIdx]! as TokenType, start: s.starts[lastIdx]!, end: s.ends[lastIdx]! }
     : { type: TokenType.EOF, start: 0, end: 0 }
@@ -419,10 +435,14 @@ function parseBlock(s: ParserState, allowNested: boolean = false): Block {
   const startTok = peek(s)
   if (peekType(s) !== TokenType.LeftCurlyBracket)
     return { type: 'Block', children: newList<CssNode>(), loc: emptyLoc(s) }
-  consume(s) // {
+  s.pos++ // {
   const children = newList<CssNode>()
-  while (s.types[s.pos]! !== TokenType.EOF && s.types[s.pos]! !== TokenType.RightCurlyBracket) {
-    const t = s.types[s.pos]!
+  const types = s.types
+  const end = s.end
+  while (s.pos < end) {
+    const t = types[s.pos]!
+    if (t === TokenType.RightCurlyBracket || t === TokenType.EOF)
+      break
     if (t === TokenType.WhiteSpace) {
       s.pos++
       continue
@@ -447,11 +467,11 @@ function parseBlock(s: ParserState, allowNested: boolean = false): Block {
     const decl = parseDeclaration(s)
     if (decl)
       children.appendData(decl)
-    if (s.types[s.pos]! === TokenType.Semicolon)
+    if (s.pos < end && types[s.pos]! === TokenType.Semicolon)
       s.pos++
   }
   if (peekType(s) === TokenType.RightCurlyBracket)
-    consume(s)
+    s.pos++
   return { type: 'Block', children, loc: loc(s, startTok, peek(s)) }
 }
 
@@ -464,8 +484,8 @@ function lookahead(s: ParserState, predicate: (s: ParserState) => boolean): bool
 
 function isCurlyAheadBeforeSemicolon(s: ParserState): boolean {
   const types = s.types
-  const count = s.count
-  while (s.pos < count) {
+  const end = s.end
+  while (s.pos < end) {
     const t = types[s.pos]!
     if (t === TokenType.LeftCurlyBracket)
       return true
