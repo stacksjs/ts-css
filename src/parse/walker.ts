@@ -25,17 +25,34 @@ export interface WalkContext {
 
 export type WalkVisit = CssNode['type']
 
-export type WalkVisitor =
-  // eslint-disable-next-line pickier/no-unused-vars
-  | ((this: WalkContext, node: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => void | symbol)
-  | {
-    visit?: WalkVisit
-    reverse?: boolean
-    // eslint-disable-next-line pickier/no-unused-vars
-    enter?: (this: WalkContext, node: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => void | symbol
-    // eslint-disable-next-line pickier/no-unused-vars
-    leave?: (this: WalkContext, node: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => void | symbol
-  }
+// Narrow CssNode by its `type` discriminant — used to type the
+// `visit: 'Rule'` filter so consumer callbacks receive a `Rule`, not the
+// full union.
+export type CssNodeOfType<T extends WalkVisit> = Extract<CssNode, { type: T }>
+
+// eslint-disable-next-line pickier/no-unused-vars
+type VisitorCallback<N> = (this: WalkContext, node: N, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => void | symbol
+
+/**
+ * Object-form visitor. The `T extends WalkVisit` generic is inferred from
+ * the literal value of `visit`, so writing
+ *
+ *     walk(ast, { visit: 'Rule', enter(node) { … } })
+ *
+ * narrows `node` to `Rule`. Without `visit`, callbacks receive the full
+ * `CssNode` union as `enter`/`leave` arguments.
+ */
+export interface WalkVisitorObject<T extends WalkVisit | undefined = undefined> {
+  visit?: T
+  reverse?: boolean
+  enter?: VisitorCallback<T extends WalkVisit ? CssNodeOfType<T> : CssNode>
+  leave?: VisitorCallback<T extends WalkVisit ? CssNodeOfType<T> : CssNode>
+}
+
+/** Plain-function visitor — runs against every node. */
+export type WalkVisitorFunction = VisitorCallback<CssNode>
+
+export type WalkVisitor = WalkVisitorFunction | WalkVisitorObject<any>
 
 function newContext(root: CssNode): WalkContext {
   return {
@@ -60,8 +77,12 @@ function newContext(root: CssNode): WalkContext {
  * `walk.skip` / `walk.stop` are exposed as static-symbol sentinels.
  */
 export interface WalkFn {
+  // 1. visitor function — every node (no narrowing)
   // eslint-disable-next-line pickier/no-unused-vars
-  (root: CssNode, visitor: WalkVisitor): symbol | undefined
+  (root: CssNode, visitor: WalkVisitorFunction): symbol | undefined
+  // 2. visitor object with `visit: '<NodeType>'` — narrowed callbacks
+  // eslint-disable-next-line pickier/no-unused-vars
+  <T extends WalkVisit>(root: CssNode, visitor: WalkVisitorObject<T>): symbol | undefined
   skip: symbol
   stop: symbol
 }

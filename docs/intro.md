@@ -1,93 +1,99 @@
-<p align="center"><img src="https://github.com/stacksjs/rpx/blob/main/.github/art/cover.jpg?raw=true" alt="Social Card of this repo"></p>
+# Getting started
 
-# A Better Developer Experience
+`@stacksjs/ts-css` is a pure-TypeScript CSS toolkit — a parser, walker,
+generator, selector engine, and minifier — all in one **zero-dependency**
+package. It's a drop-in replacement for the four-library quartet most CSS
+pipelines pull in:
 
-> A TypeScript Starter Kit that will help you bootstrap your next project without minimal opinion.
+| Replaces      | Provides                                              |
+| ------------- | ----------------------------------------------------- |
+| `css-tree`    | Tokenizer, parser, walker, generator, clone, `List`   |
+| `css-what`    | Selector parser & stringifier                          |
+| `css-select`  | `selectAll` / `selectOne` / `is` against any tree     |
+| `csso`        | Minifier + `syntax.specificity`                        |
 
-# bun-ts-starter
+If you've worked with any of those four libraries before, the migration
+is one block of `import` lines (see the [migration guide](./migration.md)).
 
-This is an opinionated TypeScript Starter kit to help kick-start development of your next Bun package.
-
-## Get Started
-
-It's rather simple to get your package development started:
+## Install
 
 ```bash
-# you may use this GitHub template or the following command:
-bunx degit stacksjs/ts-starter my-pkg
-cd my-pkg
-
- # if you don't have pnpm installed, run `npm i -g pnpm`
-bun i # install all deps
-bun run build # builds the library for production-ready use
-
-# after you have successfully committed, you may create a "release"
-bun run release # automates git commits, versioning, and changelog generations
+bun add @stacksjs/ts-css
+# or
+npm i @stacksjs/ts-css
 ```
 
-_Check out the package.json scripts for more commands._
+## Your first parse
 
-### Developer Experience (DX)
+```ts
+import { generate, parse, walk } from '@stacksjs/ts-css'
 
-This Starter Kit comes pre-configured with the following:
+const ast = parse('.foo { color: red }')
 
-- [Powerful Build Process](https://github.com/oven-sh/bun) - via Bun
-- [Fully Typed APIs](https://www.typescriptlang.org/) - via TypeScript
-- [Documentation-ready](https://vitepress.dev/) - via VitePress
-- [CLI & Binary](https://www.npmjs.com/package/bunx) - via Bun & CAC
-- [Be a Good Commitizen](https://www.npmjs.com/package/git-cz) - pre-configured Commitizen & git-cz setup to simplify semantic git commits, versioning, and changelog generations
-- [Built With Testing In Mind](https://bun.sh/docs/cli/test) - pre-configured unit-testing powered by [Bun](https://bun.sh/docs/cli/test)
-- [Renovate](https://renovatebot.com/) - optimized & automated PR dependency updates
-- [ESLint](https://eslint.org/) - for code linting _(and formatting)_
-- [GitHub Actions](https://github.com/features/actions) - runs your CI _(fixes code style issues, tags releases & creates its changelogs, runs the test suite, etc.)_
+walk(ast, (node) => {
+  if (node.type === 'Declaration')
+    console.log(node.property)
+})
+// → "color"
 
-## Changelog
+console.log(generate(ast))
+// → ".foo{color:red}"
+```
 
-Please see our [releases](https://github.com/stacksjs/stacks/releases) page for more information on what has changed recently.
+That's the full pipeline: parse → walk/transform → generate.
 
-## Stargazers
+## Exploring the AST
 
-[![Stargazers](https://starchart.cc/stacksjs/ts-starter.svg?variant=adaptive)](https://starchart.cc/stacksjs/ts-starter)
+Pass a `context` to parse a fragment instead of a full stylesheet:
 
-## Contributing
+```ts
+parse('color: red', { context: 'declaration' })
+parse('color: red; font-size: 12px', { context: 'declarationList' })
+parse('.a > .b', { context: 'selector' })
+parse('@media (min-width: 800px)', { context: 'atrulePrelude' })
+```
 
-Please review the [Contributing Guide](https://github.com/stacksjs/contributing) for details.
+The full set of contexts is in the [parser API reference](./api/parse.md).
 
-## Community
+## Selecting nodes
 
-For help, discussion about best practices, or any other conversation that would benefit from being searchable:
+`ts-css` ships a tree-agnostic selector engine. Provide an `Adapter` for
+your tree and you can run any CSS selector against it:
 
-[Discussions on GitHub](https://github.com/stacksjs/stacks/discussions)
+```ts
+import { selectAll } from '@stacksjs/ts-css'
 
-For casual chit-chat with others using this package:
+const matches = selectAll('p > span.foo:not(.disabled)', root, {
+  adapter: myAdapter,
+  xmlMode: true,
+})
+```
 
-[Join the Stacks Discord Server](https://discord.gg/stacksjs)
+[Full selector matcher API →](./api/select.md)
 
-## Postcardware
+## Minifying
 
-Two things are true: Stacks OSS will always stay open-source, and we do love to receive postcards from wherever Stacks is used! 🌍 _We also publish them on our website. And thank you, Spatie_
+```ts
+import { minify } from '@stacksjs/ts-css'
 
-Our address: Stacks.js, 12665 Village Ln #2306, Playa Vista, CA 90094
+minify('.a { margin: 0px; color: #aabbcc }').css
+// → ".a{margin:0;color:#abc}"
+```
 
-## Sponsors
+[Full minifier API →](./api/optimize.md)
 
-We would like to extend our thanks to the following sponsors for funding Stacks development. If you are interested in becoming a sponsor, please reach out to us.
+## CLI
 
-- [JetBrains](https://www.jetbrains.com/)
-- [The Solana Foundation](https://solana.com/)
+```bash
+ts-css minify input.css > output.css
+ts-css parse  input.css | jq
+ts-css format input.css
+```
 
-## Credits
+## Where to next
 
-- [Chris Breuer](https://github.com/chrisbbreuer)
-- [All Contributors](https://github.com/stacksjs/rpx/graphs/contributors)
-
-## License
-
-The MIT License (MIT). Please see [LICENSE](https://github.com/stacksjs/ts-starter/tree/main/LICENSE.md) for more information.
-
-Made with 💙
-
-<!-- Badges -->
-
-<!-- [codecov-src]: https://img.shields.io/codecov/c/gh/stacksjs/rpx/main?style=flat-square
-[codecov-href]: https://codecov.io/gh/stacksjs/rpx -->
+- [**Parser** API](./api/parse.md) — `parse`, `walk`, `generate`, `clone`, `List`
+- [**Selector parser** API](./api/what.md) — `parse`, `stringify`, `isTraversal`
+- [**Selector matcher** API](./api/select.md) — `selectAll`, `selectOne`, `is`
+- [**Optimizer** API](./api/optimize.md) — `minify`, `minifyBlock`, `specificity`
+- [**Migration** guide](./migration.md) — moving off the four-library setup

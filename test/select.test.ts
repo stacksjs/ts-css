@@ -102,3 +102,28 @@ describe('selectOne / is', () => {
     expect(is(span, '.missing', opts)).toBe(false)
   })
 })
+
+describe('compile cache', () => {
+  it('reuses compiled selectors with default options', async () => {
+    const { compile, clearSelectorCache } = await import('../src/select')
+    clearSelectorCache(adapter as any)
+    const a = compile('p > span.foo', opts)
+    const b = compile('p > span.foo', opts)
+    expect(a).toBe(b)
+  })
+
+  it('skips the cache when cacheResults is false', async () => {
+    const { compile } = await import('../src/select')
+    const noCache: typeof opts = { ...opts, cacheResults: false }
+    const a = compile('p > span', noCache)
+    const b = compile('p > span', noCache)
+    expect(a).not.toBe(b)
+  })
+
+  it('keys cache by xmlMode flag', async () => {
+    const { compile } = await import('../src/select')
+    const a = compile('p', opts)
+    const b = compile('p', { ...opts, xmlMode: false })
+    expect(a).not.toBe(b)
+  })
+})

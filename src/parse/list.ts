@@ -17,30 +17,35 @@ function createItem<T>(data: T): ListItem<T> {
   return { prev: null, next: null, data }
 }
 
-const cursors: Array<{ list: CssList<any>, prev: ListItem<any> | null, next: ListItem<any> | null, cursor: any }> = []
+interface ListCursor<T> {
+  prev: ListItem<T> | null
+  next: ListItem<T> | null
+}
 
 export class CssList<T> {
   head: ListItem<T> | null = null
   tail: ListItem<T> | null = null
 
   // ----- mutation cursors -----
-  // Walkers may iterate while declarations get inserted/removed mid-flight;
-  // an active cursor records the in-progress prev/next pointers so a removal
-  // that lands on the cursor's `next` slot can repoint it onto the survivor.
-  private allocateCursor(prev: ListItem<T> | null, next: ListItem<T> | null): any {
-    const cursor = { list: this, prev, next, cursor: cursors[cursors.length - 1] || null }
-    cursors.push(cursor)
+  // Each list owns its own cursor stack. Callbacks may insert/remove items
+  // mid-walk; the topmost active cursor records the in-progress prev/next
+  // pointers so a removal that lands on the cursor's `next` slot can be
+  // repointed onto the survivor. Per-list (not module-global) so nested
+  // walks of the same list don't corrupt each other.
+  private cursors: ListCursor<T>[] = []
+
+  private allocateCursor(prev: ListItem<T> | null, next: ListItem<T> | null): ListCursor<T> {
+    const cursor: ListCursor<T> = { prev, next }
+    this.cursors.push(cursor)
     return cursor
   }
 
   private releaseCursor(): void {
-    cursors.pop()
+    this.cursors.pop()
   }
 
   private updateCursors(prevOld: ListItem<T> | null, prevNew: ListItem<T> | null, nextOld: ListItem<T> | null, nextNew: ListItem<T> | null): void {
-    for (const c of cursors) {
-      if (c.list !== this)
-        continue
+    for (const c of this.cursors) {
       if (c.prev === prevOld)
         c.prev = prevNew
       if (c.next === nextOld)
@@ -100,28 +105,31 @@ export class CssList<T> {
     return this.toArray()
   }
 
+  /**
+   * css-tree-style forEach: callback receives `(data, item, list)`.
+   * The `item` is the underlying `ListItem<T>`, not the index — call sites
+   * use it with `list.remove(item)` / `list.replace(item, ...)`.
+   */
   // eslint-disable-next-line pickier/no-unused-vars
-  forEach(fn: (item: T, index: number, list: CssList<T>) => void, thisArg?: any): void {
+  forEach(fn: (data: T, item: ListItem<T>, list: CssList<T>) => void, thisArg?: any): void {
     const cursor = this.allocateCursor(null, this.head)
-    let i = 0
     while (cursor.next !== null) {
       const item = cursor.next as ListItem<T>
       cursor.prev = item
       cursor.next = item.next
-      fn.call(thisArg, item.data, i++, this)
+      fn.call(thisArg, item.data, item, this)
     }
     this.releaseCursor()
   }
 
   // eslint-disable-next-line pickier/no-unused-vars
-  forEachRight(fn: (item: T, index: number, list: CssList<T>) => void, thisArg?: any): void {
+  forEachRight(fn: (data: T, item: ListItem<T>, list: CssList<T>) => void, thisArg?: any): void {
     const cursor = this.allocateCursor(this.tail, null)
-    let i = this.toArray().length - 1
     while (cursor.prev !== null) {
       const item = cursor.prev as ListItem<T>
       cursor.next = item
       cursor.prev = item.prev
-      fn.call(thisArg, item.data, i--, this)
+      fn.call(thisArg, item.data, item, this)
     }
     this.releaseCursor()
   }
@@ -220,9 +228,9 @@ export class CssList<T> {
     return this.insert(createItem(data), null)
   }
 
-  /** Insert `item` before `before`, or at tail if `before` is null. */
-  insert(item: ListItem<T>, before: ListItem<T> | null = null): this {
-    if (before !== null) {
+  /** Insert `item` before `before`, or at tail if `before` is null/undefined. */
+  insert(item: ListItem<T>, before: ListItem<T> | null | undefined = null): this {
+    if (before != null) {
       this.updateCursors(before.prev, item, before, item)
       if (before.prev === null) {
         if (this.head !== before)

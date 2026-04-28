@@ -1,89 +1,162 @@
-# Get Started
+# Usage
 
-There are two ways of using this reverse proxy: _as a library or as a CLI._
+`@stacksjs/ts-css` is a library first, with a small CLI on top. Most
+consumers import it as a library; the CLI is a convenience wrapper for
+ad-hoc minification and AST inspection.
 
 ## Library
 
-Given the npm package is installed:
+### Full pipeline: parse → walk → generate
 
 ```ts
-import type { TlsConfig } from '@stacksjs/rpx'
-import { startProxy } from '@stacksjs/rpx'
+import { generate, parse, walk } from '@stacksjs/ts-css'
 
-export interface CleanupConfig {
-  hosts: boolean // clean up /etc/hosts, defaults to false
-  certs: boolean // clean up certificates, defaults to false
-}
+const ast = parse(`
+  .foo {
+    color: red;
+    background: url("/assets/bg.png");
+  }
+`)
 
-export interface ReverseProxyConfig {
-  from: string // domain to proxy from, defaults to localhost:3000
-  to: string // domain to proxy to, defaults to stacks.localhost
-  cleanUrls?: boolean // removes the .html extension from URLs, defaults to false
-  https: boolean | TlsConfig // automatically uses https, defaults to true, also redirects http to https
-  cleanup?: boolean | CleanupConfig // automatically cleans up /etc/hosts, defaults to false
-  verbose: boolean // log verbose output, defaults to false
-}
+walk(ast, {
+  visit: 'Url',
+  enter(url) {
+    console.log('asset:', url.value)
+  },
+})
 
-const config: ReverseProxyOptions = {
-  from: 'localhost:3000',
-  to: 'my-docs.localhost',
-  cleanUrls: true,
-  https: true,
-  cleanup: false,
-}
-
-startProxy(config)
+console.log(generate(ast))
 ```
 
-In case you are trying to start multiple proxies, you may use this configuration:
+### Selector matching against your tree
 
 ```ts
-// reverse-proxy.config.{ts,js}
-import type { ReverseProxyOptions } from '@stacksjs/rpx'
-import os from 'node:os'
-import path from 'node:path'
+import { selectAll } from '@stacksjs/ts-css'
 
-const config: ReverseProxyOptions = {
-  https: { // https: true -> also works with sensible defaults
-    caCertPath: path.join(os.homedir(), '.stacks', 'ssl', `stacks.localhost.ca.crt`),
-    certPath: path.join(os.homedir(), '.stacks', 'ssl', `stacks.localhost.crt`),
-    keyPath: path.join(os.homedir(), '.stacks', 'ssl', `stacks.localhost.crt.key`),
+interface MyEl {
+  type: 'el'
+  name: string
+  attrs: Record<string, string>
+  children: MyEl[]
+  parent: MyEl | null
+}
+
+const adapter = {
+  isTag: (n: any): n is MyEl => n?.type === 'el',
+  getName: (e: MyEl) => e.name,
+  getParent: (e: MyEl) => e.parent,
+  getChildren: (e: MyEl) => e.children,
+  getSiblings: (e: MyEl) => e.parent?.children ?? [e],
+  getAttributeValue: (e: MyEl, n: string) => e.attrs[n],
+  hasAttrib: (e: MyEl, n: string) => n in e.attrs,
+  getText: () => '',
+  removeSubsets: (xs: any[]) => xs,
+  existsOne: (test: (e: MyEl) => boolean, xs: any[]): boolean =>
+    xs.some(x => adapter.isTag(x) && (test(x) || adapter.existsOne(test, x.children))),
+  findAll: (test: (e: MyEl) => boolean, xs: any[]): MyEl[] => {
+    const out: MyEl[] = []
+    for (const x of xs) {
+      if (adapter.isTag(x)) {
+        if (test(x)) out.push(x)
+        out.push(...adapter.findAll(test, x.children))
+      }
+    }
+    return out
   },
-
-  cleanup: {
-    hosts: true,
-    certs: false,
+  findOne: (test: (e: MyEl) => boolean, xs: any[]): MyEl | null => {
+    for (const x of xs) {
+      if (adapter.isTag(x)) {
+        if (test(x)) return x
+        const r = adapter.findOne(test, x.children)
+        if (r) return r
+      }
+    }
+    return null
   },
+}
 
-  proxies: [
-    {
-      from: 'localhost:5173',
-      to: 'my-app.localhost',
-      cleanUrls: true,
-    },
-    {
-      from: 'localhost:5174',
-      to: 'my-api.local',
-    },
-  ],
+const matches = selectAll('p > .foo:not(.disabled)', root, {
+  adapter,
+  xmlMode: true,
+})
+```
 
-  verbose: true,
+### Minify a stylesheet
+
+```ts
+import { minify } from '@stacksjs/ts-css'
+
+const { css } = minify(input, {
+  comments: 'exclamation', // keep `/*!*/` comments
+})
+```
+
+### Compute selector specificity
+
+```ts
+import { parse, syntax } from '@stacksjs/ts-css'
+
+const sel = parse('#a.b div', { context: 'selector' })
+syntax.specificity(sel) // [1, 1, 1]
+```
+
+## CLI
+
+```sh
+ts-css <command> <file>
+```
+
+| Command         | Output                                               |
+| --------------- | ---------------------------------------------------- |
+| `minify <file>` | Minified CSS on stdout.                              |
+| `parse <file>`  | The parsed AST as JSON on stdout.                    |
+| `format <file>` | Round-trip through parser/generator (deterministic). |
+| `version`       | Print the installed CLI version.                     |
+
+### Examples
+
+```sh
+# Minify a stylesheet, write to disk
+ts-css minify src/app.css > dist/app.css
+
+# Inspect the AST of a snippet
+echo '.a { color: red }' > /tmp/snip.css
+ts-css parse /tmp/snip.css | jq '.children[0]'
+
+# Format-only round trip
+ts-css format src/app.css
+```
+
+### Flags
+
+`ts-css minify`:
+
+| Flag             | Description                          |
+| ---------------- | ------------------------------------ |
+| `--no-comments`  | Strip `/*!*/` comments too.          |
+| `--block`        | Treat input as a `style="…"` body.   |
+
+`ts-css parse`:
+
+| Flag           | Description                                         |
+| -------------- | --------------------------------------------------- |
+| `--positions`  | Track source-location info on every AST node.       |
+
+## Configuration
+
+You can drop a `css.config.ts` at the project root for defaults:
+
+```ts
+// css.config.ts
+import type { CSSOptions } from '@stacksjs/ts-css'
+
+const config: CSSOptions = {
+  floatPrecision: 3,
+  verbose: false,
 }
 
 export default config
 ```
 
-## CLI
-
-```bash
-rpx --from localhost:3000 --to my-project.localhost
-rpx --from localhost:8080 --to my-project.test --keyPath ./key.pem --certPath ./cert.pem
-rpx --help
-rpx --version
-```
-
-## Testing
-
-```bash
-bun test
-```
+`ts-css` loads it via [`bunfig`](https://github.com/stacksjs/bunfig) — the
+same loader used across the Stacks toolchain.

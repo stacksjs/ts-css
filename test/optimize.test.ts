@@ -27,6 +27,30 @@ describe('minify', () => {
   it('shortens hex colors', () => {
     expect(minify('.a{color:#aabbcc}').css).toBe('.a{color:#abc}')
   })
+
+  it('shortens named colors when hex is strictly shorter', () => {
+    // black (5) → #000 (4): replace
+    expect(minify('.a{color:black}').css).toBe('.a{color:#000}')
+    // white (5) → #fff (4): replace
+    expect(minify('.a{color:white}').css).toBe('.a{color:#fff}')
+  })
+
+  it('keeps named colors that tie or beat hex', () => {
+    // blue (4) ties #00f (4) — keep keyword
+    expect(minify('.a{color:blue}').css).toBe('.a{color:blue}')
+    // red (3) beats #f00 (4) — keep keyword
+    expect(minify('.a{color:red}').css).toBe('.a{color:red}')
+  })
+
+  it('only swaps colors inside color properties', () => {
+    // font-family is not a color property — `red` stays
+    expect(minify('.a{font-family:red}').css).toBe('.a{font-family:red}')
+  })
+
+  it('reverses hex → name when name is strictly shorter', () => {
+    // #ff0000 (7) → red (3): replace
+    expect(minify('.a{color:#ff0000}').css).toBe('.a{color:red}')
+  })
 })
 
 describe('minifyBlock', () => {
@@ -55,5 +79,14 @@ describe('syntax.specificity', () => {
   it(':is() takes max of args', () => {
     const sel = parse(':is(#a, .b)', { context: 'selector' })
     expect(syntax.specificity(sel)).toEqual([1, 0, 0])
+  })
+  it('accepts a raw selector string', () => {
+    expect(syntax.specificity('#a.b div')).toEqual([1, 1, 1])
+    expect(syntax.specificity('p > span:not(#x)')).toEqual([1, 0, 2])
+  })
+  it('accepts cssWhat-style Selector[][] arrays', async () => {
+    const { parse: parseWhat } = await import('../src/what')
+    const ast = parseWhat('#a.b div')
+    expect(syntax.specificity(ast)).toEqual([1, 1, 1])
   })
 })

@@ -38,6 +38,34 @@ describe('parse + generate round-trip', () => {
     expect(ast.children.first.name).toBe('media')
   })
 
+  it('parses unknown at-rule preludes (no hardcoded whitelist)', () => {
+    const ast = parse('@my-custom rule (foo) { .a { color: red } }') as any
+    const at = ast.children.first
+    expect(at.type).toBe('Atrule')
+    expect(at.name).toBe('my-custom')
+    // Prelude should be parsed structurally (AtrulePrelude with children),
+    // not stored as a Raw blob.
+    expect(at.prelude.type).toBe('AtrulePrelude')
+    expect(at.prelude.children.toArray().length).toBeGreaterThan(0)
+  })
+
+  it('parses @scope, @starting-style, and @container with nested rules', () => {
+    for (const name of ['scope', 'starting-style', 'container']) {
+      const ast = parse(`@${name} (foo) { .x { color: blue } }`) as any
+      const at = ast.children.first
+      expect(at.type).toBe('Atrule')
+      expect(at.block.children.first.type).toBe('Rule')
+    }
+  })
+
+  it('calls onParseError for malformed declarations', () => {
+    const errors: string[] = []
+    parse('.a { invalid-no-colon; color: red; }', {
+      onParseError: (err) => { errors.push(err.message) },
+    })
+    expect(errors.length).toBeGreaterThan(0)
+  })
+
   it('parses url() function', () => {
     const ast = parse('.a{background:url("x.png")}') as any
     let foundUrl = false
@@ -65,6 +93,27 @@ describe('parse + generate round-trip', () => {
     expect(ast.children.toArray().length).toBe(2)
   })
 
+  it('narrows visitor.enter via visit filter', () => {
+    const ast = parse('.a{color:red} .b{color:blue}')
+    const propsByRule: string[][] = []
+    walk(ast, {
+      visit: 'Rule',
+      enter(rule) {
+        // `rule` is narrowed to Rule here — TS should NOT see the wider union.
+        const props: string[] = []
+        walk(rule.block, {
+          visit: 'Declaration',
+          enter(decl) {
+            // `decl` narrowed to Declaration
+            props.push(decl.property)
+          },
+        })
+        propsByRule.push(props)
+      },
+    })
+    expect(propsByRule).toEqual([['color'], ['color']])
+  })
+
   it('exposes a doubly linked List', () => {
     const list = new List<number>()
     list.appendData(1)
@@ -73,5 +122,22 @@ describe('parse + generate round-trip', () => {
     expect(list.toArray()).toEqual([1, 2, 3])
     list.shift()
     expect(list.toArray()).toEqual([2, 3])
+  })
+
+  it('survives nested forEach with mid-walk removal', () => {
+    const list = new List<number>()
+    list.fromArray([1, 2, 3, 4, 5])
+    const seen: number[] = []
+    list.forEach((data, item) => {
+      seen.push(data)
+      // a nested walk over the SAME list — must not corrupt the outer cursor.
+      list.forEach((d) => { void d })
+      if (data === 2) {
+        // remove the current node mid-iteration
+        list.remove(item)
+      }
+    })
+    expect(seen).toEqual([1, 2, 3, 4, 5])
+    expect(list.toArray()).toEqual([1, 3, 4, 5])
   })
 })

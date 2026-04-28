@@ -1,33 +1,38 @@
 ---
-# https://vitepress.dev/reference/default-theme-home-page
 layout: home
 
 hero:
-  name: "ts-starter"
-  text: "For a better local environment."
-  tagline: "Modern and smart reverse proxy."
-  image: /images/logo-white.png
+  name: "@stacksjs/ts-css"
+  text: "Pure-TypeScript CSS toolkit."
+  tagline: "Parser, walker, generator, selector engine, minifier — zero runtime deps."
   actions:
     - theme: brand
-      text: Get Started
+      text: Get started
       link: /intro
     - theme: alt
+      text: Migration guide
+      link: /migration
+    - theme: alt
       text: View on GitHub
-      link: https://github.com/stacksjs/rpx
+      link: https://github.com/stacksjs/ts-css
 
 features:
-  - title: "Minimal Starter Kit"
-    icon: "🔀"
-    details: "Bootstrap your next TypeScript project."
-  - title: "Documentation"
-    icon: "📚"
-    details: "Easily document your idea/package/library."
-  - title: "CLI"
-    icon: "🛠"
-    details: "Build your own CLI."
-  - title: "Binary"
-    icon: "🚀"
-    details: "Automatically builds a binary for your project out of your CLI."
+  - title: "All-in-one CSS pipeline"
+    icon: "🧩"
+    details: "Replaces css-tree + css-select + css-what + csso. One install, no transitive deps."
+  - title: "Drop-in compatible"
+    icon: "🔁"
+    details: "Namespace re-exports keep existing call sites unchanged. Migrate by editing imports."
+  - title: "Selector engine"
+    icon: "🎯"
+    details: "Run any CSS selector against any tree. Adapter pattern preserved verbatim."
+  - title: "Minifier"
+    icon: "📦"
+    details: "Number / color / unit compression, declaration dedup, comment cleanup, specificity calc."
+  - title: "Bun-first"
+    icon: "🥟"
+    details: "Built on Bun, runs on Node ≥18. Strict TypeScript with isolatedDeclarations."
+  - title: "Small surface, full coverage"
+    icon: "✂️"
+    details: "Pragmatic — every API real consumers (CSSO, SVGO, lint tools) actually use."
 ---
-
-<Home />

@@ -1,118 +1,76 @@
 # Install
 
-_This is just an example of the ts-starter docs._
+`@stacksjs/ts-css` is a single package. There are no transitive dependencies.
 
-Installing `rpx` is easy. Simply pull it in via your package manager of choice, or download the binary directly.
-
-## Package Managers
-
-Choose your package manager of choice:
+## Package managers
 
 ::: code-group
 
-```sh [npm]
-npm install --save-dev @stacksjs/rpx
-# npm i -d @stacksjs/rpx
-
-# or, install globally via
-npm i -g @stacksjs/rpx
+```sh [bun]
+bun add @stacksjs/ts-css
+# or, dev dependency
+bun add --dev @stacksjs/ts-css
 ```
 
-```sh [bun]
-bun install --dev @stacksjs/rpx
-# bun add --dev @stacksjs/rpx
-# bun i -d @stacksjs/rpx
-
-# or, install globally via
-bun add --global @stacksjs/rpx
+```sh [npm]
+npm install @stacksjs/ts-css
+# or, dev dependency
+npm install --save-dev @stacksjs/ts-css
 ```
 
 ```sh [pnpm]
-pnpm add --save-dev @stacksjs/rpx
-# pnpm i -d @stacksjs/rpx
-
-# or, install globally via
-pnpm add --global @stacksjs/rpx
+pnpm add @stacksjs/ts-css
+# or, dev dependency
+pnpm add --save-dev @stacksjs/ts-css
 ```
 
 ```sh [yarn]
-yarn add --dev @stacksjs/rpx
-# yarn i -d @stacksjs/rpx
-
-# or, install globally via
-yarn global add @stacksjs/rpx
-```
-
-```sh [brew]
-brew install rpx # coming soon
-```
-
-```sh [pkgx]
-pkgx rpx # coming soon
+yarn add @stacksjs/ts-css
 ```
 
 :::
 
-Read more about how to use it in the Usage section of the documentation.
+## Local development with `bun link`
 
-## Binaries
+If you're contributing to ts-css and want to test the changes against
+another project locally, register it once with `bun link`:
 
-Choose the binary that matches your platform and architecture:
+```sh
+# inside the ts-css repo
+bun link
 
-::: code-group
-
-```sh [macOS (arm64)]
-# Download the binary
-curl -L https://github.com/stacksjs/rpx/releases/download/v0.9.1/rpx-darwin-arm64 -o rpx
-
-# Make it executable
-chmod +x rpx
-
-# Move it to your PATH
-mv rpx /usr/local/bin/rpx
+# inside the consumer project
+bun link @stacksjs/ts-css
 ```
 
-```sh [macOS (x64)]
-# Download the binary
-curl -L https://github.com/stacksjs/rpx/releases/download/v0.9.1/rpx-darwin-x64 -o rpx
+That's how [`ts-svg`](https://github.com/stacksjs/ts-svg) consumes ts-css
+during development — its `package.json` carries
+`"@stacksjs/ts-css": "link:@stacksjs/ts-css"`.
 
-# Make it executable
-chmod +x rpx
+## CLI binary (optional)
 
-# Move it to your PATH
-mv rpx /usr/local/bin/rpx
+The `ts-css` CLI ships with the package and is exposed via Bun's `bin`
+field. After installing, you can run:
+
+```sh
+bunx ts-css minify input.css
 ```
 
-```sh [Linux (arm64)]
-# Download the binary
-curl -L https://github.com/stacksjs/rpx/releases/download/v0.9.1/rpx-linux-arm64 -o rpx
+For a standalone binary, build from source:
 
-# Make it executable
-chmod +x rpx
-
-# Move it to your PATH
-mv rpx /usr/local/bin/rpx
+```sh
+bun run compile           # builds bin/ts-css for your platform
+bun run compile:all       # cross-compile for darwin/linux/windows
 ```
 
-```sh [Linux (x64)]
-# Download the binary
-curl -L https://github.com/stacksjs/rpx/releases/download/v0.9.1/rpx-linux-x64 -o rpx
+## Verifying the install
 
-# Make it executable
-chmod +x rpx
+```ts
+import { minify, parse } from '@stacksjs/ts-css'
 
-# Move it to your PATH
-mv rpx /usr/local/bin/rpx
+console.log(minify('.a { color: #aabbcc }').css)
+// → ".a{color:#abc}"
 ```
 
-```sh [Windows (x64)]
-# Download the binary
-curl -L https://github.com/stacksjs/rpx/releases/download/v0.9.1/rpx-windows-x64.exe -o rpx.exe
-
-# Move it to your PATH (adjust the path as needed)
-move rpx.exe C:\Windows\System32\rpx.exe
-```
-
-::: tip
-You can also find the `rpx` binaries in GitHub [releases](https://github.com/stacksjs/rpx/releases).
-:::
+If that prints the minified output, you're set. Continue to
+[**Getting started**](./intro.md).

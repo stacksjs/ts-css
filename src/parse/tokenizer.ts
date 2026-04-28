@@ -507,6 +507,65 @@ export class Tokenizer {
 }
 
 /** Decode a CSS-escaped name slice (e.g. `\\26 B` → `&B`). */
+/**
+ * Decode a CSS string literal slice to its actual character value.
+ * `start` / `end` exclude the surrounding quote characters.
+ *
+ * Handles:
+ *   - hex escapes (`\26 ` → `&`)
+ *   - `\"` / `\'` / `\\`
+ *   - escaped newlines (CSS: backslash followed by newline is removed)
+ *   - any other `\<char>` → `<char>`
+ */
+export function decodeString(source: string, start: number, end: number): string {
+  let out = ''
+  let i = start
+  while (i < end) {
+    const c = source.charCodeAt(i)
+    if (c !== 92 /* \\ */) {
+      out += source[i]!
+      i++
+      continue
+    }
+    // backslash at end-of-input
+    if (i + 1 >= end) {
+      i++
+      continue
+    }
+    // backslash + newline = continuation (removed entirely)
+    const next = source.charCodeAt(i + 1)
+    if (next === 10) {
+      i += 2
+      continue
+    }
+    if (next === 13) {
+      i += source.charCodeAt(i + 2) === 10 ? 3 : 2
+      continue
+    }
+    // hex escape
+    if (isHexDigit(next)) {
+      let j = i + 1
+      let hex = ''
+      while (hex.length < 6 && j < end && isHexDigit(source.charCodeAt(j))) {
+        hex += source[j]
+        j++
+      }
+      const code = Number.parseInt(hex, 16)
+      if (j < end && isWhitespace(source.charCodeAt(j)))
+        j++
+      out += code === 0 || (code >= 0xD800 && code <= 0xDFFF) || code > 0x10FFFF
+        ? String.fromCodePoint(REPLACEMENT)
+        : String.fromCodePoint(code)
+      i = j
+      continue
+    }
+    // escape of any other char (including \" \' \\) — keep the char
+    out += source[i + 1]
+    i += 2
+  }
+  return out
+}
+
 export function decodeName(source: string, start: number, end: number): string {
   let out = ''
   let i = start

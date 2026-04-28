@@ -152,6 +152,24 @@ function newList<T>(): CssList<T> {
   return new CssList<T>()
 }
 
+/**
+ * Report a parse problem to the consumer. Always returns the supplied
+ * fallback node so call sites can `return reportError(…, raw)`. The
+ * `onParseError` hook lets consumers (linters, IDEs) surface
+ * the parser's recovery substitutions.
+ */
+function reportError(s: ParserState, message: string, at: Token, fallback: CssNode): CssNode {
+  if (s.onParseError) {
+    const { line, column } = s.tokenizer.locate(at.start)
+    const err = new SyntaxError(`${s.filename ?? '<input>'}:${line}:${column}: ${message}`) as SyntaxError & { line: number, column: number, offset: number }
+    err.line = line
+    err.column = column
+    err.offset = at.start
+    s.onParseError(err, fallback)
+  }
+  return fallback
+}
+
 // ----- top-level dispatch -----
 
 export function parse(source: string, options: ParseOptions = {}): CssNode {
@@ -250,21 +268,35 @@ function parseAtrule(s: ParserState): Atrule | null {
   if (preludeStart !== peek(s)) {
     const raw = s.source.slice(preludeStart.start, preludeEndTok.end).trim()
     if (raw.length > 0) {
-      if (s.parseAtrulePrelude && (name === 'media' || name === 'supports' || name === 'import' || name === 'charset' || name === 'namespace' || name === 'keyframes' || name === '-webkit-keyframes' || name === '-moz-keyframes' || name === '-o-keyframes' || name === 'page' || name === 'font-face' || name === 'document' || name === 'layer' || name === 'container')) {
-        // Reparse the prelude tokens as an AtrulePrelude with mixed tokens.
-        const sub = makeState(raw, { positions: false })
-        const children = newList<CssNode>()
-        while (peekType(sub) !== TokenType.EOF) {
-          const tok = sub.tokens[sub.pos]!
-          if (tok.type === TokenType.WhiteSpace) {
-            sub.pos++
-            continue
+      if (s.parseAtrulePrelude) {
+        // Always attempt to parse — fall back to Raw if parsing produces
+        // nothing useful or throws. No more hardcoded at-rule whitelist:
+        // custom at-rules (`@property`, `@scope`, `@layer`, future specs)
+        // get a parsed prelude too.
+        try {
+          const sub = makeState(raw, { positions: false })
+          sub.onParseError = s.onParseError
+          const children = newList<CssNode>()
+          while (peekType(sub) !== TokenType.EOF) {
+            const tok = sub.tokens[sub.pos]!
+            if (tok.type === TokenType.WhiteSpace) {
+              sub.pos++
+              continue
+            }
+            const node = parseValueChild(sub)
+            if (node)
+              children.appendData(node)
           }
-          const node = parseValueChild(sub)
-          if (node)
-            children.appendData(node)
+          if (children.isEmpty)
+            prelude = rawNode(raw, preludeStart, preludeEndTok, s)
+          else
+            prelude = { type: 'AtrulePrelude', children, loc: null }
         }
-        prelude = { type: 'AtrulePrelude', children, loc: null }
+        catch (err) {
+          const fallback = rawNode(raw, preludeStart, preludeEndTok, s)
+          reportError(s, `Failed to parse @${name} prelude: ${(err as Error).message}`, preludeStart, fallback)
+          prelude = fallback
+        }
       }
       else {
         prelude = rawNode(raw, preludeStart, preludeEndTok, s)
@@ -277,11 +309,27 @@ function parseAtrule(s: ParserState): Atrule | null {
     consume(s)
   }
   else if (peekType(s) === TokenType.LeftCurlyBracket) {
-    block = parseBlock(s, name === 'media' || name === 'supports' || name === 'document' || name === 'layer' || name === 'container')
+    block = parseBlock(s, AT_RULES_WITH_NESTED_RULES.has(name))
   }
 
   return { type: 'Atrule', name, prelude, block, loc: loc(s, startTok, peek(s)) }
 }
+
+/**
+ * At-rules whose block contains nested *rules* (selector { … }), as
+ * opposed to direct declarations. Used to switch parser mode inside the
+ * block. Lives here (not on _collections) because it's a parser concern.
+ */
+const AT_RULES_WITH_NESTED_RULES: ReadonlySet<string> = new Set([
+  'media',
+  'supports',
+  'document',
+  'layer',
+  'container',
+  'scope',
+  'starting-style',
+  '-moz-document',
+])
 
 function parseAtrulePreludeContext(s: ParserState): AtrulePrelude {
   const startTok = peek(s)
@@ -430,6 +478,7 @@ function parseDeclaration(s: ParserState): Declaration | null {
     }
     else {
       // skip junk to next ;
+      reportError(s, `Expected property name`, startTok, { type: 'Raw', value: '', loc: null })
       while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.Semicolon && peekType(s) !== TokenType.RightCurlyBracket)
         consume(s)
       return null
@@ -443,6 +492,7 @@ function parseDeclaration(s: ParserState): Declaration | null {
   skipWhitespaceOnly(s)
   if (peekType(s) !== TokenType.Colon) {
     // not a declaration — recover
+    reportError(s, `Expected ':' after property "${property}"`, peek(s), { type: 'Raw', value: '', loc: null })
     while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.Semicolon && peekType(s) !== TokenType.RightCurlyBracket)
       consume(s)
     return null
