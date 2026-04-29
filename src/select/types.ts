@@ -27,10 +27,16 @@ export interface Adapter<Node, ElementNode extends Node> {
   hasAttrib: (elem: ElementNode, name: string) => boolean
   // eslint-disable-next-line pickier/no-unused-vars
   removeSubsets: (nodes: Node[]) => Node[]
+  /**
+   * `findAll` / `findOne` are accepted for adapter-shape compatibility
+   * with css-select, but ts-css implements its own iterative tree walker
+   * (`select/helpers/querying.ts`) and does NOT call these. They're
+   * declared optional so adapters that don't provide them still type-check.
+   */
   // eslint-disable-next-line pickier/no-unused-vars
-  findAll: (test: (e: ElementNode) => boolean, elems: Node[]) => ElementNode[]
+  findAll?: (test: (e: ElementNode) => boolean, elems: Node[]) => ElementNode[]
   // eslint-disable-next-line pickier/no-unused-vars
-  findOne: (test: (e: ElementNode) => boolean, elems: Node[]) => ElementNode | null
+  findOne?: (test: (e: ElementNode) => boolean, elems: Node[]) => ElementNode | null
   // eslint-disable-next-line pickier/no-unused-vars
   equals?: (a: Node, b: Node) => boolean
   // eslint-disable-next-line pickier/no-unused-vars

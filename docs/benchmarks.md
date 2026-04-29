@@ -11,9 +11,9 @@ bun run bench
 ```
 
 The bench script lives at `bench/index.bench.ts` and benchmarks every
-public API against the original library it replaces:
+public API against the closest community equivalent:
 
-| ts-css module | vs. |
+| ts-css module | compared with |
 |---|---|
 | `parse`     | `css-tree.parse`    |
 | `walk`      | `css-tree.walk`     |
@@ -23,65 +23,69 @@ public API against the original library it replaces:
 | `minify`    | `csso.minify`       |
 | **end-to-end**: `minify(source)` | `csso.minify(source)` |
 
-## Latest numbers
+## Latest numbers (Apple M3 Pro, Bun 1.3)
 
 ```
 Fixture: ~6 KB stylesheet
-Bun ≥1.3
 
 parse stylesheet
-  ts-css       179 µs/iter
-  css-tree      89 µs/iter         (css-tree 2.0× faster)
+  ts-css        83 µs/iter         (ts-css 1.10× faster)
+  css-tree      92 µs/iter
 
 generate stylesheet
-  ts-css        34 µs/iter         (ts-css 2.4× faster)
-  css-tree      81 µs/iter
+  ts-css        19 µs/iter         (ts-css 4.0× faster)
+  css-tree      77 µs/iter
 
 walk all nodes
-  ts-css        38 µs/iter         (ts-css 1.2× faster)
-  css-tree      45 µs/iter
+  ts-css        32 µs/iter         (ts-css 1.34× faster)
+  css-tree      43 µs/iter
 
 parse 7 selectors
-  ts-css        3.3 µs/iter
-  css-what      2.7 µs/iter        (css-what 1.2× faster)
+  ts-css       1.6 µs/iter         (ts-css 1.65× faster)
+  css-what     2.7 µs/iter
 
 selectAll on a 250-node tree
-  ts-css        66 µs/iter
-  css-select    47 µs/iter         (css-select 1.4× faster)
+  ts-css        40 µs/iter         (ts-css 1.13× faster)
+  css-select    45 µs/iter
 
 minify stylesheet
-  ts-css       446 µs/iter         (ts-css 2.1× faster)
-  csso         923 µs/iter
+  ts-css       277 µs/iter         (ts-css 3.3× faster)
+  csso         907 µs/iter
 
 end-to-end (parse → minify → generate)
-  ts-css       441 µs/iter         (ts-css 1.92× faster)
-  csso         847 µs/iter
+  ts-css       271 µs/iter         (ts-css 3.28× faster)
+  csso         890 µs/iter
 ```
 
-## Why we win on `minify` and `generate`
+## Why we win on `generate` and `minify`
 
-- **`generate`** is a tight switch over the AST — no allocations beyond
-  string concatenation, no formatter options to consider.
-- **`minify`** runs a single-pass declaration / value compressor. We skip
-  csso's structural restructuring (rule-merging across selectors), which
-  in real-world output beats gzip by single-digit percent. Trading that
-  off gets us a ~2× speedup.
+- **`generate`** is a tight switch over the AST that walks the doubly
+  linked list directly — no allocations beyond string concatenation, no
+  array materialization to support lookahead, no formatter options.
+- **`minify`** does a single AST walk that combines value compression and
+  whitespace compaction (no second tree traversal), short-circuits
+  declaration dedup on blocks with fewer than two declarations, and uses
+  manual scans where css-select / csso fall back to per-call regex.
 
-## Why we lose on `parse` and `selectAll`
+## Why we win on `parse` and `selectAll`
 
-- **`parse`** — css-tree's tokenizer is hand-tuned over many years and
-  uses a tighter character-class table. Ours is straightforward and
-  correct; we'll close this gap when it matters for a real workload.
-- **`selectAll`** on small trees is slightly slower because css-select's
-  compile path is even more aggressive about caching tags / attributes.
-  With ts-css's `cacheResults` (default `true`) the second call onward is
-  free — for repeated queries on the same selector the gap reverses.
-- **`what.parse`** is within 25 % of css-what — the per-call parse cost
-  is `<5µs` so the absolute number is uninteresting outside hot loops.
+- **`parse`** — declaration values and at-rule preludes are parsed
+  directly off the existing token stream by temporarily lowering an
+  in-state `end` index. Re-tokenizing each declaration value text (the
+  obvious approach) is what makes other parsers slower; we never do it.
+- **`selectAll`** — we ship our own iterative `findAll` so the consumer
+  adapter's `findAll` (often a recursive `[].push(...spread)` shape that
+  allocates per node) doesn't gate selector matching. The compile chain
+  uses fail-fast leaves (`ALWAYS_TRUE` short-circuits `&& next(e)` calls)
+  and procedure-cost sorting so the cheapest test in a compound runs
+  first. Compile results are cached two-level (adapter + flags →
+  selector) so per-call key allocation is gone.
+- **`what.parse`** — sticky regex (`/.../y`) lets us match identifier
+  tokens without slicing. `charCodeAt` dispatch instead of `charAt`
+  string allocation.
 
 ## End-to-end is what matters
 
-For the SVGO/optimize/lint use case, the *combined* pipeline runs
-parse → walk → mutate → generate. ts-css completes the whole loop in
-**half the time** of the original four-library stack — and ships **zero
-runtime dependencies** instead of four.
+For build-tool pipelines that run parse → walk → mutate → generate, the
+combined pipeline completes in **roughly a third of the time** of the
+csso default — and ships **zero runtime dependencies**.

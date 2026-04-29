@@ -21,6 +21,8 @@ function cloneAny(value: any): any {
   }
   if (Array.isArray(value))
     return value.map(cloneAny)
+  // CssLocation and other plain objects; defer detection of AST nodes to
+  // the `'type' in value` check below.
   // typed AST node
   if ('type' in value && typeof value.type === 'string') {
     const out: Record<string, any> = { type: value.type }
@@ -31,7 +33,9 @@ function cloneAny(value: any): any {
     }
     return out
   }
-  // plain object
+  // plain object — including CssLocation which we want to preserve
+  // by-value rather than share by reference (matters when consumers
+  // mutate `loc` after cloning).
   const out: Record<string, any> = {}
   for (const k of Object.keys(value))
     out[k] = cloneAny(value[k])

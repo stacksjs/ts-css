@@ -192,6 +192,17 @@ export class CssList<T> {
   }
 
   clear(): void {
+    // Unlink every item so consumers that retained a reference via
+    // `forEach`/`map` callbacks don't keep the rest of the chain alive
+    // through the prev/next pointers (which would defeat GC and let
+    // mutations on a "cleared" list surprise other code holding handles).
+    let cur = this.head
+    while (cur) {
+      const nxt = cur.next
+      cur.prev = null
+      cur.next = null
+      cur = nxt
+    }
     this.head = null
     this.tail = null
   }

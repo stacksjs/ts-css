@@ -4,10 +4,18 @@
  */
 
 import { CLI } from '@stacksjs/clapp'
-import { readFileSync } from 'node:fs'
-import { minify } from '../src/optimize'
+import { existsSync, readFileSync } from 'node:fs'
+import { minify, minifyBlock } from '../src/optimize'
 import { generate, parse } from '../src/parse'
 import { version } from '../package.json'
+
+function readSourceOrExit(file: string): string {
+  if (!existsSync(file)) {
+    process.stderr.write(`ts-css: file not found: ${file}\n`)
+    process.exit(1)
+  }
+  return readFileSync(file, 'utf8')
+}
 
 const cli = new CLI('ts-css')
 
@@ -16,10 +24,11 @@ cli
   .option('--no-comments', 'Strip /*!*/ comments too')
   .option('--block', 'Treat input as a declarationList (style="…" body)')
   .action(async (file: string, opts: { comments: boolean, block: boolean }) => {
-    const css = readFileSync(file, 'utf8')
-    const result = minify(css, {
-      comments: opts.comments === false ? false : 'exclamation',
-    })
+    const css = readSourceOrExit(file)
+    const minOptions = { comments: opts.comments === false ? false : ('exclamation' as const) }
+    const result = opts.block
+      ? minifyBlock(css, minOptions)
+      : minify(css, minOptions)
     process.stdout.write(result.css)
   })
 
@@ -27,7 +36,7 @@ cli
   .command('parse <file>', 'Parse a CSS file and print its AST as JSON')
   .option('--positions', 'Include source locations on every node')
   .action(async (file: string, opts: { positions: boolean }) => {
-    const css = readFileSync(file, 'utf8')
+    const css = readSourceOrExit(file)
     const ast = parse(css, { positions: opts.positions })
     process.stdout.write(JSON.stringify(ast, null, 2))
   })
@@ -35,7 +44,7 @@ cli
 cli
   .command('format <file>', 'Round-trip CSS through parser/generator (deterministic single-line output)')
   .action(async (file: string) => {
-    const css = readFileSync(file, 'utf8')
+    const css = readSourceOrExit(file)
     const ast = parse(css)
     process.stdout.write(generate(ast))
   })

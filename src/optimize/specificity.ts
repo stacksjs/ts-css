@@ -14,6 +14,7 @@
 
 import type { CssNode } from '../parse'
 import type { Selector as WhatSelector } from '../what'
+import { parse as parseSelector } from '../what'
 
 export type Specificity = [number, number, number]
 
@@ -21,8 +22,6 @@ export function specificity(input: CssNode | WhatSelector[][] | WhatSelector[] |
   const result: Specificity = [0, 0, 0]
 
   if (typeof input === 'string') {
-    // Lazy import to avoid a hard cycle.
-    const { parse: parseSelector } = require('../what') as typeof import('../what')
     const ast = parseSelector(input)
     visitWhat(ast, result)
     return result

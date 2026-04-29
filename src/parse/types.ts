@@ -98,6 +98,12 @@ export interface Block extends BaseNode {
 
 export interface Declaration extends BaseNode {
   type: 'Declaration'
+  /**
+   * `true` when the declaration ends with `!important`. The string-form
+   * (e.g. `'!ie'` for IE-prefix hacks) is occasionally produced by other
+   * libraries, so the type stays permissive — but ts-css's parser always
+   * sets `boolean`.
+   */
   important: boolean | string
   property: string
   value: Value | Raw

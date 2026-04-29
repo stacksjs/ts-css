@@ -52,7 +52,7 @@ export interface WalkVisitorObject<T extends WalkVisit | undefined = undefined> 
 /** Plain-function visitor — runs against every node. */
 export type WalkVisitorFunction = VisitorCallback<CssNode>
 
-export type WalkVisitor = WalkVisitorFunction | WalkVisitorObject<any>
+export type WalkVisitor = WalkVisitorFunction | WalkVisitorObject<WalkVisit | undefined>
 
 function newContext(root: CssNode): WalkContext {
   return {
@@ -227,36 +227,28 @@ function walkList(
   // eslint-disable-next-line pickier/no-unused-vars
   visitNode: (n: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => symbol | undefined,
 ): symbol | undefined {
-  // Use list's own forEach to honor the cursor protocol so callbacks may
-  // safely mutate the list mid-walk.
+  // The list's `forEach` callback already receives the current `ListItem`
+  // as its second argument — passing it straight to `visitNode` avoids the
+  // O(N) `findItem` linear scan per child that the previous implementation
+  // performed (turning every walk into O(N²)).
   let stopped: symbol | undefined
   if (reverse) {
-    list.forEachRight((data, _, l) => {
+    list.forEachRight((data, item, l) => {
       if (stopped)
         return
-      const item = findItem(l, data)
       const r = visitNode(data, item, l)
       if (r === STOP)
         stopped = STOP
     })
   }
   else {
-    list.forEach((data, _, l) => {
+    list.forEach((data, item, l) => {
       if (stopped)
         return
-      const item = findItem(l, data)
       const r = visitNode(data, item, l)
       if (r === STOP)
         stopped = STOP
     })
   }
   return stopped
-}
-
-function findItem(list: CssList<CssNode>, data: CssNode): ListItem<CssNode> | null {
-  for (let cur = list.head; cur != null; cur = cur.next) {
-    if (cur.data === data)
-      return cur
-  }
-  return null
 }

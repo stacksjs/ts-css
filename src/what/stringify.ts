@@ -80,8 +80,13 @@ function nsPrefix(ns: string | null): string {
   return `${escapeIdent(ns)}|`
 }
 
-const RE_INVALID_ID_CHAR = /[^\w-]/g
+// Valid CSS identifier chars: ASCII letters, digits, `-`, `_`, and any
+// non-ASCII (>= 0x80). Anything else needs an escape. `\W` rejects
+// non-ASCII, so we use an explicit positive set.
+const RE_INVALID_ID_CHAR = /[^\w°-￿-]/g
 
 function escapeIdent(name: string): string {
+  if (name === '')
+    return ''
   return name.replace(RE_INVALID_ID_CHAR, m => `\\${m}`)
 }

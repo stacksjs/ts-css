@@ -13,6 +13,11 @@ import { compressTree } from './compress'
 export interface MinifyOptions {
   /** When false, comments starting with `!` are preserved. */
   comments?: boolean | 'exclamation' | 'first-exclamation'
+  /**
+   * Maximum decimal places to keep on numeric values (rounded). Omit or
+   * set to `null` to keep input precision. Matches csso's option name.
+   */
+  floatPrecision?: number | null
   /** Restructure rules across the document — currently a no-op (we
    * keep declarations stable; csso's restructuring is the bulk of its
    * code and gives marginal real-world benefit beyond gzip). */
@@ -52,7 +57,7 @@ function runPipeline(ast: CssNode, options: MinifyOptions): MinifyResult {
   }
 
   // 2. value-level compression (numbers, dimensions, colors, urls)
-  compressTree(ast)
+  compressTree(ast, { floatPrecision: options.floatPrecision ?? null })
 
   // 3. declaration dedup
   dedupeDeclarations(ast)

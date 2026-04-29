@@ -7,8 +7,6 @@ import type { AttributeSelectorNode } from '../what'
 import type { Adapter, CompiledQuery, Options } from './types'
 import { ALWAYS_TRUE } from './helpers/always-true'
 
-type Predicate<E> = (e: E) => boolean
-
 function isWsCode(c: number): boolean {
   return c === 32 || c === 9 || c === 10 || c === 12 || c === 13
 }
@@ -242,4 +240,3 @@ function wrap<Node, ElementNode extends Node>(
   return _ => { void _; return false }
 }
 
-export type { Predicate }

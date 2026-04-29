@@ -23,23 +23,32 @@ function getAdapter<Node, ElementNode extends Node>(options: Options<Node, Eleme
 }
 
 // ----- compiled-selector cache -----
-// Keyed by Adapter (object identity) so different trees can't poison each
-// other's cache. The inner key is a deterministic string capturing the
-// selector + the options that affect compile output.
-const adapterCaches = new WeakMap<object, Map<string, CompiledQuery<any>>>()
+// Two-level lookup: outer keyed by Adapter (object identity), inner keyed
+// by a 3-bit flag-signature integer encoding the options that change
+// compile output. The innermost map is keyed by selector text. This avoids
+// the per-call `${flags}|${selector}` string concat the previous
+// single-level cache did — meaningful when consumers call selectAll in a
+// hot loop.
+const adapterCaches = new WeakMap<object, (Map<string, CompiledQuery<any>> | undefined)[]>()
 
-function cacheKey(selector: string, options: Options<any, any>): string {
-  // Only options that change compile output need to be in the key.
-  return `${options.xmlMode ? '1' : '0'}|${options.lowerCaseAttributeNames === false ? '0' : '1'}|${options.lowerCaseTags === false ? '0' : '1'}|${selector}`
+function flagSig(options: Options<any, any>): number {
+  return ((options.xmlMode ? 1 : 0) << 0)
+    | ((options.lowerCaseAttributeNames === false ? 1 : 0) << 1)
+    | ((options.lowerCaseTags === false ? 1 : 0) << 2)
 }
 
-function getCache(adapter: object): Map<string, CompiledQuery<any>> {
-  let cache = adapterCaches.get(adapter)
-  if (!cache) {
-    cache = new Map()
-    adapterCaches.set(adapter, cache)
+function getCache(adapter: object, sig: number): Map<string, CompiledQuery<any>> {
+  let bucket = adapterCaches.get(adapter)
+  if (!bucket) {
+    bucket = []
+    adapterCaches.set(adapter, bucket)
   }
-  return cache
+  let m = bucket[sig]
+  if (!m) {
+    m = new Map()
+    bucket[sig] = m
+  }
+  return m
 }
 
 function compileSelectorString<Node, ElementNode extends Node>(
@@ -65,13 +74,12 @@ export function compile<Node, ElementNode extends Node>(
   if (options.cacheResults === false || !options.adapter)
     return compileSelectorString(selector, options)
 
-  const cache = getCache(options.adapter as unknown as object)
-  const key = cacheKey(selector, options)
-  let compiled = cache.get(key)
+  const cache = getCache(options.adapter as unknown as object, flagSig(options))
+  let compiled = cache.get(selector)
   if (compiled !== undefined)
     return compiled as CompiledQuery<ElementNode>
   compiled = compileSelectorString(selector, options)
-  cache.set(key, compiled)
+  cache.set(selector, compiled)
   return compiled as CompiledQuery<ElementNode>
 }
 
@@ -82,12 +90,12 @@ export function clearSelectorCache(adapter: object, selector?: string): void {
     adapterCaches.delete(adapter)
     return
   }
-  const cache = adapterCaches.get(adapter)
-  if (!cache)
+  const bucket = adapterCaches.get(adapter)
+  if (!bucket)
     return
-  for (const key of cache.keys()) {
-    if (key.endsWith(`|${selector}`))
-      cache.delete(key)
+  for (const m of bucket) {
+    if (m)
+      m.delete(selector)
   }
 }
 

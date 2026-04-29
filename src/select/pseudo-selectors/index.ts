@@ -7,6 +7,7 @@
 
 import type { Selector } from '../../what'
 import type { CompiledQuery, Options } from '../types'
+import { parse as parseSelectorString } from '../../what'
 import { compileGeneric, parseAndCompile } from './selectors'
 
 interface PseudoToken {
@@ -14,6 +15,25 @@ interface PseudoToken {
   name: string
   data: string | Selector[][] | null
 }
+
+// Pseudo-classes whose match depends on document state (focus, hover, form
+// validity, etc.) that ts-css doesn't model. They fail closed unless the
+// caller supplies an `options.pseudos[name]` predicate.
+const STATEFUL_PSEUDOS: ReadonlySet<string> = new Set([
+  'link', 'any-link', 'visited', 'hover', 'active', 'focus',
+  'focus-visible', 'focus-within', 'target', 'target-within', 'enabled',
+  'disabled', 'checked', 'required', 'optional', 'valid', 'invalid',
+  'selected', 'placeholder-shown', 'read-only', 'read-write', 'in-range',
+  'out-of-range', 'default', 'indeterminate',
+])
+
+const SELECTOR_LIST_PSEUDOS: ReadonlySet<string> = new Set([
+  'is', 'where', 'matches', '-moz-any', '-webkit-any',
+])
+
+const NTH_PSEUDOS: ReadonlySet<string> = new Set([
+  'nth-child', 'nth-last-child', 'nth-of-type', 'nth-last-of-type',
+])
 
 export function compilePseudo<Node, ElementNode extends Node>(
   token: PseudoToken,
@@ -25,65 +45,165 @@ export function compilePseudo<Node, ElementNode extends Node>(
   const data = token.data
 
   // -------- combinatorial pseudos: take selector lists --------
-  if (token.type === 'pseudo' && (name === 'is' || name === 'where' || name === 'matches' || name === '-moz-any' || name === '-webkit-any')) {
+  if (token.type === 'pseudo' && SELECTOR_LIST_PSEUDOS.has(name)) {
     if (!Array.isArray(data))
       return next
     const tests = (data as Selector[][]).map(seg => parseAndCompile(seg, options))
-    return e => tests.some(t => t(e)) && next(e)
+    // For a single sub-selector, skip the array iteration cost.
+    if (tests.length === 1) {
+      const t0 = tests[0]!
+      return e => t0(e) && next(e)
+    }
+    return (e) => {
+      for (const t of tests) {
+        if (t(e))
+          return next(e)
+      }
+      return false
+    }
   }
   if (token.type === 'pseudo' && name === 'not') {
     if (!Array.isArray(data))
       return next
     const tests = (data as Selector[][]).map(seg => parseAndCompile(seg, options))
-    return e => !tests.some(t => t(e)) && next(e)
+    if (tests.length === 1) {
+      const t0 = tests[0]!
+      return e => !t0(e) && next(e)
+    }
+    return (e) => {
+      for (const t of tests) {
+        if (t(e))
+          return false
+      }
+      return next(e)
+    }
   }
   if (token.type === 'pseudo' && name === 'has') {
     if (!Array.isArray(data))
       return next
     const tests = (data as Selector[][]).map(seg => parseAndCompile(seg, options))
+    // Collapse the sub-test list into a single predicate so the inner
+    // descendant loop only invokes one function per node.
+    const subjectTest: CompiledQuery<ElementNode> = tests.length === 1
+      ? tests[0]!
+      : ((node: any) => {
+          for (const t of tests) {
+            if (t(node))
+              return true
+          }
+          return false
+        }) as any
     return (e) => {
-      const stack = adapter.getChildren(e).slice()
+      // Iterative DFS using `pop` (O(1)) instead of `shift` (O(n)). The
+      // iteration order is reversed but `:has()` doesn't care about order
+      // — it stops at the first descendant that satisfies the test.
+      const stack: any[] = adapter.getChildren(e).slice()
       while (stack.length > 0) {
-        const cur = stack.shift()!
-        if (adapter.isTag(cur) && tests.some(t => t(cur as any)))
+        const cur = stack.pop()
+        if (!adapter.isTag(cur))
+          continue
+        if (subjectTest(cur as any))
           return next(e)
-        if (cur && (cur as any).children)
-          stack.push(...adapter.getChildren(cur))
+        const kids = adapter.getChildren(cur as any)
+        for (let i = 0; i < kids.length; i++)
+          stack.push(kids[i])
       }
       return false
     }
   }
 
   // -------- nth-* pseudos --------
-  if (token.type === 'pseudo' && (name === 'nth-child' || name === 'nth-last-child' || name === 'nth-of-type' || name === 'nth-last-of-type')) {
+  if (token.type === 'pseudo' && NTH_PSEUDOS.has(name)) {
     const fn = compileNth(typeof data === 'string' ? data : '', name, options)
     return e => fn(e) && next(e)
   }
 
   // -------- structural pseudos --------
+  // Each variant scans `getSiblings(e)` once without allocating the
+  // filtered intermediate array `[].filter()` would (the previous shape
+  // produced one allocation per element-test, which the matcher hits
+  // 250+ times per selector even for tiny trees).
   if (token.type === 'pseudo' && name === 'first-child') {
-    return e => isNthSibling(e, options, true, false, false) && next(e)
+    return (e) => {
+      const sibs = adapter.getSiblings(e)
+      for (const s of sibs) {
+        if (!adapter.isTag(s))
+          continue
+        return s === e && next(e)
+      }
+      return false
+    }
   }
   if (token.type === 'pseudo' && name === 'last-child') {
-    return e => isNthSibling(e, options, false, true, false) && next(e)
+    return (e) => {
+      const sibs = adapter.getSiblings(e)
+      for (let i = sibs.length - 1; i >= 0; i--) {
+        const s = sibs[i]!
+        if (!adapter.isTag(s))
+          continue
+        return s === e && next(e)
+      }
+      return false
+    }
   }
   if (token.type === 'pseudo' && name === 'first-of-type') {
-    return e => isNthSibling(e, options, true, false, true) && next(e)
+    return (e) => {
+      const tag = adapter.getName(e)
+      const sibs = adapter.getSiblings(e)
+      for (const s of sibs) {
+        if (!adapter.isTag(s) || adapter.getName(s as any) !== tag)
+          continue
+        return s === e && next(e)
+      }
+      return false
+    }
   }
   if (token.type === 'pseudo' && name === 'last-of-type') {
-    return e => isNthSibling(e, options, false, true, true) && next(e)
+    return (e) => {
+      const tag = adapter.getName(e)
+      const sibs = adapter.getSiblings(e)
+      for (let i = sibs.length - 1; i >= 0; i--) {
+        const s = sibs[i]!
+        if (!adapter.isTag(s) || adapter.getName(s as any) !== tag)
+          continue
+        return s === e && next(e)
+      }
+      return false
+    }
   }
   if (token.type === 'pseudo' && name === 'only-child') {
     return (e) => {
-      const sibs = adapter.getSiblings(e).filter(s => adapter.isTag(s))
-      return sibs.length === 1 && sibs[0] === e && next(e)
+      const sibs = adapter.getSiblings(e)
+      let count = 0
+      let found = false
+      for (const s of sibs) {
+        if (!adapter.isTag(s))
+          continue
+        count++
+        if (count > 1)
+          return false
+        if (s === e)
+          found = true
+      }
+      return count === 1 && found && next(e)
     }
   }
   if (token.type === 'pseudo' && name === 'only-of-type') {
     return (e) => {
       const tag = adapter.getName(e)
-      const sibs = adapter.getSiblings(e).filter(s => adapter.isTag(s) && adapter.getName(s as any) === tag)
-      return sibs.length === 1 && sibs[0] === e && next(e)
+      const sibs = adapter.getSiblings(e)
+      let count = 0
+      let found = false
+      for (const s of sibs) {
+        if (!adapter.isTag(s) || adapter.getName(s as any) !== tag)
+          continue
+        count++
+        if (count > 1)
+          return false
+        if (s === e)
+          found = true
+      }
+      return count === 1 && found && next(e)
     }
   }
 
@@ -99,17 +219,21 @@ export function compilePseudo<Node, ElementNode extends Node>(
   }
   if (token.type === 'pseudo' && name === 'scope') {
     if (options.context && Array.isArray(options.context)) {
-      return e => (options.context as any[]).includes(e) && next(e)
+      // Materialize a Set once at compile time — `Array.includes` is O(n)
+      // per element check and `:scope` runs against every candidate.
+      const ctx = new Set<any>(options.context as any[])
+      return e => ctx.has(e) && next(e)
     }
     if (options.context) {
-      return e => (e as any) === options.context && next(e)
+      const ctx = options.context as any
+      return e => (e as any) === ctx && next(e)
     }
     return (e) => {
       const p = adapter.getParent(e)
       return (p == null || !adapter.isTag(p as any)) && next(e)
     }
   }
-  if (token.type === 'pseudo' && (name === 'link' || name === 'any-link' || name === 'visited' || name === 'hover' || name === 'active' || name === 'focus' || name === 'focus-visible' || name === 'focus-within' || name === 'target' || name === 'target-within' || name === 'enabled' || name === 'disabled' || name === 'checked' || name === 'required' || name === 'optional' || name === 'valid' || name === 'invalid' || name === 'selected' || name === 'placeholder-shown' || name === 'read-only' || name === 'read-write' || name === 'in-range' || name === 'out-of-range' || name === 'default' || name === 'indeterminate')) {
+  if (token.type === 'pseudo' && STATEFUL_PSEUDOS.has(name)) {
     // Stateful pseudos — without a real DOM we treat them as always-false
     // (matches css-select's `xmlMode` defaults). Consumers who need real
     // matching can pass `options.pseudos[name]` callbacks.
@@ -135,7 +259,12 @@ export function compilePseudo<Node, ElementNode extends Node>(
       return e => ext(e, typeof data === 'string' ? data : undefined) && next(e)
     }
     if (typeof ext === 'string') {
-      const re = parseAndCompile(parseRaw(ext), options)
+      // Compile the alias selector string with `compileGeneric` so commas
+      // (selector lists) are handled correctly. Previously this routed
+      // through a stubbed `parseRaw` that always returned `[]`, which
+      // silently caused string-aliased pseudos to never match.
+      const aliasGroups = parseSelectorString(ext)
+      const re = compileGeneric(aliasGroups, options)
       return e => re(e) && next(e)
     }
   }
@@ -144,36 +273,6 @@ export function compilePseudo<Node, ElementNode extends Node>(
   return _ => { void _; return false }
 }
 
-function parseRaw(text: string): Selector[] {
-  // small helper avoiding an outer dep cycle on what.parse for inline css
-  void text
-  return []
-}
-
-function isNthSibling<Node, ElementNode extends Node>(
-  e: ElementNode,
-  options: Options<Node, ElementNode>,
-  first: boolean,
-  last: boolean,
-  ofType: boolean,
-): boolean {
-  const adapter = options.adapter
-  const siblings = adapter.getSiblings(e).filter(s => adapter.isTag(s))
-  if (ofType) {
-    const tag = adapter.getName(e)
-    const filtered = siblings.filter(s => adapter.getName(s as any) === tag)
-    if (first)
-      return filtered[0] === e
-    if (last)
-      return filtered[filtered.length - 1] === e
-    return false
-  }
-  if (first)
-    return siblings[0] === e
-  if (last)
-    return siblings[siblings.length - 1] === e
-  return false
-}
 
 function parseAnPlusB(s: string): { a: number, b: number } | null {
   const trimmed = s.trim()
@@ -206,16 +305,25 @@ function compileNth<Node, ElementNode extends Node>(
   const ofType = kind === 'nth-of-type' || kind === 'nth-last-of-type'
   const reverse = kind === 'nth-last-child' || kind === 'nth-last-of-type'
   return (e) => {
-    let siblings = adapter.getSiblings(e).filter(s => adapter.isTag(s))
-    if (ofType) {
-      const tag = adapter.getName(e)
-      siblings = siblings.filter(s => adapter.getName(s as any) === tag)
+    // Compute idx in one pass over siblings — no `filter()` allocs and no
+    // `reverse()` mutation. For `nth-last-*` we count total matching
+    // siblings then take `total - rawIdx + 1`.
+    const sibs = adapter.getSiblings(e)
+    const tag = ofType ? adapter.getName(e) : ''
+    let raw = 0 // 1-based index of `e` among matching siblings
+    let total = 0
+    for (const s of sibs) {
+      if (!adapter.isTag(s))
+        continue
+      if (ofType && adapter.getName(s as any) !== tag)
+        continue
+      total++
+      if (s === e)
+        raw = total
     }
-    if (reverse)
-      siblings = siblings.reverse()
-    const idx = siblings.indexOf(e) + 1
-    if (idx === 0)
+    if (raw === 0)
       return false
+    const idx = reverse ? total - raw + 1 : raw
     if (a === 0)
       return idx === b
     return ((idx - b) / a) >= 0 && ((idx - b) % a) === 0

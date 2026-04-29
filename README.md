@@ -181,10 +181,10 @@ End-to-end (parse → minify → generate) on a 6 KB representative fixture
 
 | Pipeline                    | Time/iter |
 | --------------------------- | --------- |
-| `ts-css.minify(source)`     | **~370 µs** |
-| `csso.minify(source)`       | ~870 µs    |
+| `ts-css.minify(source)`     | **~270 µs** |
+| `csso.minify(source)`       | ~890 µs    |
 
-→ **~2.3× faster end-to-end** with zero runtime deps. Per-API breakdown
+→ **~3.3× faster end-to-end** with zero runtime deps. Per-API breakdown
 in [`docs/benchmarks.md`](./docs/benchmarks.md). Run them yourself with
 `bun run bench`.
 

@@ -79,10 +79,6 @@ function isHexDigit(code: number): boolean {
   return code < 128 && (CHAR_CLASS[code]! & 4) !== 0
 }
 
-function isNonAscii(code: number): boolean {
-  return code >= 0x80
-}
-
 function isNameStart(code: number): boolean {
   return code >= 0x80 || (code < 128 && (CHAR_CLASS[code]! & 8) !== 0)
 }
@@ -151,18 +147,33 @@ export class Tokenizer {
   /** Lazy-built `Token`-shaped array — only filled if a consumer
    *  reads `.tokens`. Internally the parser uses the typed arrays. */
   private _tokens: Token[] | null = null
-  /** Offset where each line starts; used for line/col reporting. */
-  lineStarts: number[] = [0]
+  /**
+   * Offset where each line starts; used for line/col reporting. Built
+   * lazily by `locate()` — almost every parse runs with `positions: false`
+   * and never asks for source locations, so paying the per-newline
+   * `lineStarts.push()` during tokenization is pure overhead in the
+   * common case. The closures the original loops captured for that push
+   * are also gone.
+   */
+  private _lineStarts: number[] | null = null
 
   constructor(source: string) {
     this.source = source
-    // Estimate token count: avg ~4 chars per token. Better to over-allocate
-    // a little than to have to grow.
-    const cap = Math.max(64, source.length >> 1)
+    // CSS averages ~3.5 chars/token across realistic stylesheets (selectors,
+    // declarations, values, whitespace). Allocating `len/3` covers nearly
+    // all inputs without needing `grow()`. Floor at 64 for tiny snippets.
+    const cap = Math.max(64, Math.ceil(source.length / 3))
     this.types = new Uint8Array(cap)
     this.starts = new Uint32Array(cap)
     this.ends = new Uint32Array(cap)
     this.tokenize()
+  }
+
+  /** Public alias kept for back-compat — built lazily on first read. */
+  get lineStarts(): number[] {
+    if (this._lineStarts == null)
+      this._lineStarts = buildLineStarts(this.source)
+    return this._lineStarts
   }
 
   /** Lazy `Token[]` view for backwards-compat. */
@@ -201,21 +212,12 @@ export class Tokenizer {
     while (i < len) {
       const c1 = src.charCodeAt(i)
 
-      // newline tracking
-      if (c1 === 10) // \n
-        this.lineStarts.push(i + 1)
-      else if (c1 === 13 && src.charCodeAt(i + 1) !== 10) // \r without \n
-        this.lineStarts.push(i + 1)
-
       // comment /* ... */
       if (c1 === 47 /* / */ && src.charCodeAt(i + 1) === 42 /* * */) {
         const start = i
         i += 2
-        while (i < len && !(src.charCodeAt(i) === 42 && src.charCodeAt(i + 1) === 47)) {
-          if (src.charCodeAt(i) === 10)
-            this.lineStarts.push(i + 1)
+        while (i < len && !(src.charCodeAt(i) === 42 && src.charCodeAt(i + 1) === 47))
           i++
-        }
         i = i < len ? i + 2 : len
         this.addToken(TokenType.Comment, start, i)
         continue
@@ -224,11 +226,8 @@ export class Tokenizer {
       // whitespace
       if (isWhitespace(c1)) {
         const start = i
-        while (i < len && isWhitespace(src.charCodeAt(i))) {
-          if (src.charCodeAt(i) === 10)
-            this.lineStarts.push(i + 1)
+        while (i < len && isWhitespace(src.charCodeAt(i)))
           i++
-        }
         this.addToken(TokenType.WhiteSpace, start, i)
         continue
       }
@@ -345,8 +344,6 @@ export class Tokenizer {
       if (c === 92 /* \ */) {
         const c2 = src.charCodeAt(i + 1)
         if (isNewline(c2)) {
-          if (c2 === 10)
-            this.lineStarts.push(i + 2)
           i += 2
           continue
         }
@@ -382,10 +379,22 @@ export class Tokenizer {
 
   private consumeName(start: number): number {
     const src = this.source
+    const len = src.length
     let i = start
-    while (i < src.length) {
+    // Fast path: pure ASCII name chars — no escape, no non-ASCII. Inline
+    // `isName` so the JIT keeps the loop body in a single branch path.
+    while (i < len) {
       const c = src.charCodeAt(i)
-      if (isName(c)) {
+      if (c < 128 && (CHAR_CLASS[c]! & (2 | 8)) !== 0) {
+        i++
+        continue
+      }
+      if (c === 45 /* - */) {
+        i++
+        continue
+      }
+      // Slow path: non-ASCII or escape — fall back to the general check.
+      if (c >= 0x80) {
         i++
         continue
       }
@@ -483,11 +492,8 @@ export class Tokenizer {
     const src = this.source
     const len = src.length
     let i = nameEnd + 1
-    while (i < len && isWhitespace(src.charCodeAt(i))) {
-      if (src.charCodeAt(i) === 10)
-        this.lineStarts.push(i + 1)
+    while (i < len && isWhitespace(src.charCodeAt(i)))
       i++
-    }
     while (i < len) {
       const c = src.charCodeAt(i)
       if (c === 41 /* ) */) {
@@ -497,11 +503,8 @@ export class Tokenizer {
       }
       if (isWhitespace(c)) {
         const wsStart = i
-        while (i < len && isWhitespace(src.charCodeAt(i))) {
-          if (src.charCodeAt(i) === 10)
-            this.lineStarts.push(i + 1)
+        while (i < len && isWhitespace(src.charCodeAt(i)))
           i++
-        }
         if (i >= len) {
           this.addToken(TokenType.Url, start, i)
           return i
@@ -530,9 +533,9 @@ export class Tokenizer {
     return i
   }
 
-  private consumeBadUrl(start: number, _from: number): number {
+  private consumeBadUrl(start: number, from: number): number {
     const src = this.source
-    let i = _from
+    let i = from
     while (i < src.length) {
       const c = src.charCodeAt(i)
       if (c === 41) {
@@ -551,18 +554,36 @@ export class Tokenizer {
 
   /** Resolve `offset` to (line, column) for error messages. */
   locate(offset: number): { line: number, column: number } {
+    const ls = this.lineStarts
     let lo = 0
-    let hi = this.lineStarts.length - 1
+    let hi = ls.length - 1
     while (lo < hi) {
       const mid = (lo + hi + 1) >> 1
-      if (this.lineStarts[mid]! <= offset)
+      if (ls[mid]! <= offset)
         lo = mid
       else
         hi = mid - 1
     }
-    const lineStart = this.lineStarts[lo]!
+    const lineStart = ls[lo]!
     return { line: lo + 1, column: offset - lineStart + 1 }
   }
+}
+
+function buildLineStarts(source: string): number[] {
+  const out = [0]
+  const len = source.length
+  for (let i = 0; i < len; i++) {
+    const c = source.charCodeAt(i)
+    if (c === 10) {
+      out.push(i + 1)
+    }
+    else if (c === 13) {
+      // \r without \n, OR \r\n (treat the LF position consistently)
+      if (source.charCodeAt(i + 1) !== 10)
+        out.push(i + 1)
+    }
+  }
+  return out
 }
 
 /** Decode a CSS-escaped name slice (e.g. `\\26 B` → `&B`). */

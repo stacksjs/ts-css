@@ -74,11 +74,17 @@ export function compressRgbToHex(value: string): string {
   const r = parseChannel(m[1]!)
   const g = parseChannel(m[2]!)
   const b = parseChannel(m[3]!)
-  if (m[4] && m[4] !== '1' && m[4] !== '100%') {
+  if (m[4] !== undefined && !isAlphaOne(m[4])) {
     // alpha != 1 — keep as rgba
     return value
   }
   return rgbToHex(r, g, b)
+}
+
+function isAlphaOne(s: string): boolean {
+  if (s.endsWith('%'))
+    return Number.parseFloat(s) >= 100
+  return Number.parseFloat(s) >= 1
 }
 
 function parseChannel(s: string): number {

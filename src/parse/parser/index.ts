@@ -14,8 +14,8 @@
  */
 
 import type {
-  AtrulePrelude,
   Atrule,
+  AtrulePrelude,
   AttributeSelector,
   Block,
   ClassSelector,
@@ -25,17 +25,11 @@ import type {
   CssNode,
   Declaration,
   DeclarationList,
-  DimensionNode,
-  FunctionNode,
-  HashNode,
   Identifier,
   IdSelector,
-  NumberNode,
-  OperatorNode,
   ParenthesesNode,
   ParseContext,
   ParseOptions,
-  PercentageNode,
   PseudoClassSelector,
   PseudoElementSelector,
   Raw,
@@ -47,7 +41,6 @@ import type {
   TypeSelector,
   UrlNode,
   Value,
-  WhiteSpaceNode,
 } from '../types'
 import { CssList } from '../list'
 import type { Token } from '../tokenizer'
@@ -108,10 +101,6 @@ function makeState(source: string, options: ParseOptions): ParserState {
 
 function peekType(s: ParserState): TokenType {
   return s.pos < s.end ? (s.types[s.pos]! as TokenType) : TokenType.EOF
-}
-
-function peekStart(s: ParserState): number {
-  return s.starts[s.pos]!
 }
 
 function peek(s: ParserState): Token {
@@ -221,7 +210,7 @@ export function parse(source: string, options: ParseOptions = {}): CssNode {
     case 'block': return parseBlock(s)
     case 'declarationList': return parseDeclarationList(s)
     case 'declaration': return parseDeclaration(s) ?? makeEmptyStyleSheet(s)
-    case 'value': return parseValue(s, false)
+    case 'value': return parseValue(s)
     case 'raw': return parseRawAsValue(s)
     default: return parseStyleSheet(s)
   }
@@ -305,7 +294,7 @@ function parseAtrule(s: ParserState): Atrule | null {
   if (startTok.type !== TokenType.AtKeyword)
     return null
   s.pos++
-  const name = s.source.slice(startTok.start + 1, startTok.end).toLowerCase()
+  const name = lowerIfNeeded(s.source, startTok.start + 1, startTok.end)
 
   // Collect prelude tokens until ; or { — pre-scan for the boundary.
   skipWhitespace(s)
@@ -336,7 +325,6 @@ function parseAtrule(s: ParserState): Atrule | null {
           // Run the prelude parser on the existing token stream — temporarily
           // restrict `s.end` to the prelude boundary so the loop sees EOF.
           const savedEnd = s.end
-          const savedPos = s.pos
           s.end = preludeEndPos
           s.pos = preludeStartPos
           const children = newList<CssNode>()
@@ -347,11 +335,9 @@ function parseAtrule(s: ParserState): Atrule | null {
           }
           promoteRatiosDeep(children)
           s.end = savedEnd
-          s.pos = scanPos // skip to after the prelude tokens
-          // Restore-or-advance: we want pos to end up at the ; or { token,
-          // which is where `scanPos` already points. (If the original loop
-          // had walked to scanPos via consume()s, that's the same place.)
-          void savedPos
+          // pos lands on the ; or { boundary so parseAtrule's caller can
+          // dispatch on the next token without re-walking.
+          s.pos = scanPos
           if (children.isEmpty)
             prelude = rawNode(raw, preludeStartTok, preludeEndTok, s)
           else
@@ -387,6 +373,14 @@ function parseAtrule(s: ParserState): Atrule | null {
 
   return { type: 'Atrule', name, prelude, block, loc: loc(s, startTok, peek(s)) }
 }
+
+/**
+ * Pseudo-class names whose argument is a selector list and needs to be
+ * re-parsed by `parseSelectorList` (rather than collected as a value).
+ */
+const SELECTOR_LIST_PSEUDOS_PARSE: ReadonlySet<string> = new Set([
+  'is', 'not', 'where', 'has', 'matches', '-moz-any', '-webkit-any',
+])
 
 /**
  * At-rules whose block contains nested *rules* (selector { … }), as
@@ -657,8 +651,10 @@ function parseDeclaration(s: ParserState): Declaration | null {
     ? { type: TokenType.Ident, start: starts[importantIdentPos]!, end: s.ends[importantIdentPos]! }
     : null
 
-  property = property.trim()
-
+  // `property` came directly from a single Ident token's source slice, so
+  // it can't have leading/trailing whitespace — the previous `.trim()`
+  // here was load-bearing only when the slice path included whitespace
+  // chars, which doesn't happen with the tokenizer.
   const isCustom = property.startsWith('--')
   let value: Value | Raw
   const valueStartByte = starts[valueStartPos]!
@@ -701,7 +697,7 @@ function parseDeclaration(s: ParserState): Declaration | null {
 
 // ----- value -----
 
-function parseValue(s: ParserState, _innerOnly: boolean): Value {
+function parseValue(s: ParserState): Value {
   return parseValueChildren(s)
 }
 
@@ -902,13 +898,32 @@ function parseValueChild(s: ParserState): CssNode | null {
     }
     case TokenType.Delim: {
       s.pos++
+      const code = src.charCodeAt(tstart)
       const ch = src[tstart]!
-      if (ch === '/' || ch === '+' || ch === '-' || ch === '*' || ch === '=' || ch === '>' || ch === '<' || ch === '~' || ch === '|' || ch === '$' || ch === '^' || ch === '!' || ch === '&')
+      // ASCII bitmap: `/ + - * = > < ~ | $ ^ ! &` — Operator semantics in
+      // value contexts. Anything else falls through as an Identifier
+      // (e.g. `&` mid-value, `!` outside !important, etc.).
+      if (isValueOperatorChar(code))
         return { type: 'Operator', value: ch, loc: s.positions ? locRange(s, tstart, tend) : null }
       return { type: 'Identifier', name: ch, loc: s.positions ? locRange(s, tstart, tend) : null }
     }
+    case TokenType.LeftSquareBracket: {
+      // `[…]` inside a value (e.g. `grid-template-columns: [start] 1fr`)
+      // becomes a `Brackets` node — matches css-tree's shape so consumers
+      // walking nested values don't see a Raw blob here.
+      s.pos++
+      const children = newList<CssNode>()
+      while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.RightSquareBracket) {
+        const inner = parseValueChild(s)
+        if (inner)
+          children.appendData(inner)
+      }
+      const endByte = s.pos < s.end ? s.ends[s.pos]! : tend
+      if (peekType(s) === TokenType.RightSquareBracket)
+        s.pos++
+      return { type: 'Brackets', children, loc: s.positions ? locRange(s, tstart, endByte) : null }
+    }
     case TokenType.AtKeyword:
-    case TokenType.LeftSquareBracket:
     case TokenType.LeftCurlyBracket:
     case TokenType.RightCurlyBracket:
     case TokenType.RightParenthesis:
@@ -931,6 +946,28 @@ function isWhitespaceCode(c: number): boolean {
   return c === 32 || c === 9 || c === 10 || c === 12 || c === 13
 }
 
+function isValueOperatorChar(code: number): boolean {
+  // / + - * = > < ~ | $ ^ ! &
+  return code === 47 || code === 43 || code === 45 || code === 42
+    || code === 61 || code === 62 || code === 60 || code === 126
+    || code === 124 || code === 36 || code === 94 || code === 33
+    || code === 38
+}
+
+/**
+ * Slice `source[start:end]` and lowercase it, but only allocate a new
+ * string when the slice actually contains uppercase ASCII. Pure-ASCII
+ * lowercase identifiers (the common case) fast-path through `slice`.
+ */
+function lowerIfNeeded(source: string, start: number, end: number): string {
+  for (let i = start; i < end; i++) {
+    const c = source.charCodeAt(i)
+    if (c >= 65 && c <= 90)
+      return source.slice(start, end).toLowerCase()
+  }
+  return source.slice(start, end)
+}
+
 function locRange(s: ParserState, startByte: number, endByte: number): CssLocation {
   const start = s.tokenizer.locate(startByte)
   const end = s.tokenizer.locate(endByte)
@@ -943,7 +980,11 @@ function locRange(s: ParserState, startByte: number, endByte: number): CssLocati
 
 function parseFunction(s: ParserState): CssNode {
   const startTok = consume(s) // function token (including `(`)
-  const name = s.source.slice(startTok.start, startTok.end - 1).toLowerCase()
+  // Fast path: scan for any uppercase ASCII before allocating a lower-case
+  // copy. Most function names in real stylesheets (`rgb`, `var`, `calc`,
+  // `linear-gradient`, …) are already lowercase, so the scan-with-no-upper
+  // path saves the `.toLowerCase()` allocation per Function token.
+  const name = lowerIfNeeded(s.source, startTok.start, startTok.end - 1)
   const children = newList<CssNode>()
   while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.RightParenthesis) {
     const node = parseValueChild(s)
@@ -954,11 +995,11 @@ function parseFunction(s: ParserState): CssNode {
     consume(s)
 
   // Normalise url("…") / url('…') into a Url node (matches css-tree shape).
+  // Walk the linked list directly — avoids the `toArray()` allocation.
   if (name === 'url') {
-    const arr = children.toArray()
-    const stringChild = arr.find(c => c.type === 'String') as { type: 'String', value: string } | undefined
-    if (stringChild) {
-      return { type: 'Url', value: stringChild.value, loc: loc(s, startTok, peek(s)) } as UrlNode
+    for (let cur: any = children.head; cur != null; cur = cur.next) {
+      if (cur.data.type === 'String')
+        return { type: 'Url', value: (cur.data as any).value, loc: loc(s, startTok, peek(s)) } as UrlNode
     }
   }
 
@@ -988,7 +1029,12 @@ function parseSelectorList(s: ParserState): SelectorList {
     if (peekType(s) === TokenType.EOF || peekType(s) === TokenType.LeftCurlyBracket)
       break
     const sel = parseSelector(s)
-    children.appendData(sel)
+    // Skip empty selectors entirely — these arise from malformed input
+    // like `,, .a {}` where parseSelector hits a `,` without finding any
+    // segment. Adding them would surface as `Rule.prelude.children: [{},…]`
+    // and break round-trips downstream.
+    if ((sel.children as any).head !== null)
+      children.appendData(sel)
     skipWhitespace(s)
     if (peekType(s) === TokenType.Comma) {
       consume(s)
@@ -1009,16 +1055,35 @@ function parseSelector(s: ParserState): Selector {
     const t = peek(s)
     if (t.type === TokenType.WhiteSpace) {
       consume(s)
-      // descendant combinator only between segments
+      // descendant combinator only between segments — and only when the
+      // next token isn't itself a combinator (`>`/`+`/`~` or `||`).
       if (!lastWasCombinator
         && peekType(s) !== TokenType.EOF
         && peekType(s) !== TokenType.Comma
         && peekType(s) !== TokenType.LeftCurlyBracket
-        && !isExplicitCombinator(s)) {
+        && !isExplicitCombinator(s)
+        && !isColumnCombinator(s)) {
         const c: Combinator = { type: 'Combinator', name: ' ', loc: loc(s, t, t) }
         children.appendData(c)
         lastWasCombinator = true
       }
+      continue
+    }
+    // Column combinator `||` — two consecutive `|` Delim tokens (CSS
+    // Selectors 4). Detect before the single-char combinator path.
+    if (
+      t.type === TokenType.Delim
+      && s.source.charCodeAt(t.start) === 124 /* | */
+      && s.types[s.pos + 1] === TokenType.Delim
+      && s.source.charCodeAt(s.starts[s.pos + 1]!) === 124
+    ) {
+      const startCol = peek(s)
+      consume(s)
+      const endCol = consume(s)
+      const c: Combinator = { type: 'Combinator', name: '||', loc: loc(s, startCol, endCol) }
+      children.appendData(c)
+      lastWasCombinator = true
+      skipWhitespace(s)
       continue
     }
     if (isExplicitCombinator(s)) {
@@ -1036,6 +1101,12 @@ function parseSelector(s: ParserState): Selector {
     children.appendData(seg)
     lastWasCombinator = false
   }
+  // A trailing combinator (descendant or otherwise) is meaningless — the
+  // selector ended before another segment arrived. Strip it so the AST
+  // doesn't carry a phantom `Combinator` that round-trips to extra
+  // whitespace at the end of the rule prelude.
+  while (children.tail && (children.tail.data as CssNode).type === 'Combinator')
+    children.remove(children.tail)
   return { type: 'Selector', children, loc: loc(s, startTok, peek(s)) }
 }
 
@@ -1047,6 +1118,17 @@ function isExplicitCombinator(s: ParserState): boolean {
   return ch === '>' || ch === '+' || ch === '~'
 }
 
+function isColumnCombinator(s: ParserState): boolean {
+  // `||` — two consecutive `|` Delim tokens.
+  if (s.types[s.pos] !== TokenType.Delim)
+    return false
+  if (s.source.charCodeAt(s.starts[s.pos]!) !== 124 /* | */)
+    return false
+  if (s.types[s.pos + 1] !== TokenType.Delim)
+    return false
+  return s.source.charCodeAt(s.starts[s.pos + 1]!) === 124
+}
+
 function parseSelectorSegment(s: ParserState): CssNode | null {
   const t = peek(s)
   switch (t.type) {
@@ -1054,8 +1136,11 @@ function parseSelectorSegment(s: ParserState): CssNode | null {
       consume(s)
       // Namespace prefix? `svg|circle` → TypeSelector(name="svg|circle").
       // We keep the prefix as part of the name (matches css-tree shape).
+      // Skip when the trailing `|` is part of `||` (column combinator) or
+      // `|=` (attribute hyphen-match) — neither is a namespace separator.
       if (peekType(s) === TokenType.Delim && s.source[peek(s).start] === '|'
-        && s.source[peek(s).start + 1] !== '=') {
+        && s.source[peek(s).start + 1] !== '='
+        && !(s.types[s.pos + 1] === TokenType.Delim && s.source.charCodeAt(s.starts[s.pos + 1]!) === 124)) {
         consume(s)
         if (peekType(s) === TokenType.Ident) {
           const local = consume(s)
@@ -1137,7 +1222,7 @@ function parsePseudo(s: ParserState, isElement: boolean, startTok: Token): Pseud
   const t = peek(s)
   if (t.type === TokenType.Ident) {
     consume(s)
-    const name = tokenSlice(s, t).toLowerCase()
+    const name = lowerIfNeeded(s.source, t.start, t.end)
     const node = isElement
       ? { type: 'PseudoElementSelector' as const, name, children: null, loc: loc(s, startTok, t) }
       : { type: 'PseudoClassSelector' as const, name, children: null, loc: loc(s, startTok, t) }
@@ -1145,14 +1230,11 @@ function parsePseudo(s: ParserState, isElement: boolean, startTok: Token): Pseud
   }
   if (t.type === TokenType.Function) {
     consume(s)
-    const name = s.source.slice(t.start, t.end - 1).toLowerCase()
+    const name = lowerIfNeeded(s.source, t.start, t.end - 1)
     const children = newList<CssNode>()
 
     // Pseudo-classes that take a selector list re-parse their argument.
-    const isSelectorListPseudo = !isElement && (
-      name === 'is' || name === 'not' || name === 'where' || name === 'has'
-      || name === 'matches' || name === '-moz-any' || name === '-webkit-any'
-    )
+    const isSelectorListPseudo = !isElement && SELECTOR_LIST_PSEUDOS_PARSE.has(name)
     if (isSelectorListPseudo) {
       // Slurp the argument tokens up to the matching `)` and re-parse them.
       const argStart = peek(s)
