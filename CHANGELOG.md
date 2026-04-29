@@ -1,3 +1,25 @@
+### 🐛 Bug Fixes
+
+- add setup-bun to publish-commit job ([ba0a364](https://github.com/stacksjs/ts-css/commit/ba0a364)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+### 🧹 Chores
+
+- add --bun flag to changelog scripts ([fd558f1](https://github.com/stacksjs/ts-css/commit/fd558f1)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- normalize CI action versions to match other repos ([f2cfd71](https://github.com/stacksjs/ts-css/commit/f2cfd71)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- fix lint and typecheck errors ([9b61350](https://github.com/stacksjs/ts-css/commit/9b61350)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- wip ([7e8a9b5](https://github.com/stacksjs/ts-css/commit/7e8a9b5)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([5624fd4](https://github.com/stacksjs/ts-css/commit/5624fd4)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([e793c83](https://github.com/stacksjs/ts-css/commit/e793c83)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([57b551c](https://github.com/stacksjs/ts-css/commit/57b551c)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([10a6e56](https://github.com/stacksjs/ts-css/commit/10a6e56)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([19a0620](https://github.com/stacksjs/ts-css/commit/19a0620)) _(by Chris <chrisbreuer93@gmail.com>)_
+- wip ([8649287](https://github.com/stacksjs/ts-css/commit/8649287)) _(by Chris <chrisbreuer93@gmail.com>)_
+- initial commit ([ee6a5e0](https://github.com/stacksjs/ts-css/commit/ee6a5e0)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+### Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+- _glennmichael123 <gtorregosa@gmail.com>_
 
 ## v0.3.1...main
 
