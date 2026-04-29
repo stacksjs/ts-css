@@ -13,6 +13,7 @@
 import type { Selector } from '../what'
 import type { Adapter, CompiledQuery, Options } from './types'
 import { parse } from '../what'
+import { findAll as ourFindAll, findOne as ourFindOne, prepareContext } from './helpers/querying'
 import { compileGeneric, parseAndCompile } from './pseudo-selectors/selectors'
 
 function getAdapter<Node, ElementNode extends Node>(options: Options<Node, ElementNode>): Adapter<Node, ElementNode> {
@@ -97,8 +98,8 @@ export function selectAll<Node, ElementNode extends Node>(
 ): ElementNode[] {
   const adapter = getAdapter(options)
   const test = typeof selector === 'function' ? selector : compile(selector, options)
-  const elems = Array.isArray(root) ? root : [root]
-  return adapter.findAll(test, elems)
+  const ctx = prepareContext(root, adapter)
+  return ourFindAll(test, ctx, adapter, options.xmlMode === true)
 }
 
 export function selectOne<Node, ElementNode extends Node>(
@@ -108,8 +109,8 @@ export function selectOne<Node, ElementNode extends Node>(
 ): ElementNode | null {
   const adapter = getAdapter(options)
   const test = typeof selector === 'function' ? selector : compile(selector, options)
-  const elems = Array.isArray(root) ? root : [root]
-  return adapter.findOne(test, elems)
+  const ctx = prepareContext(root, adapter)
+  return ourFindOne(test, ctx, adapter, options.xmlMode === true)
 }
 
 export function is<Node, ElementNode extends Node>(

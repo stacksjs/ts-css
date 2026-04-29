@@ -274,8 +274,18 @@ function parseStyleSheet(s: ParserState): StyleSheet {
         children.appendData(at)
       continue
     }
+    // Top-level safety: a stray `}` (mismatched braces in malformed input)
+    // would otherwise let parseRule return without advancing — guard against
+    // the infinite loop here rather than embedding the check inside parseRule.
+    if (t === TokenType.RightCurlyBracket) {
+      s.pos++
+      continue
+    }
+    const before = s.pos
     const r = parseRule(s)
     children.appendData(r)
+    if (s.pos === before)
+      s.pos++
   }
   const lastIdx = s.end - 1
   const endTok: Token = lastIdx >= 0
@@ -294,62 +304,77 @@ function parseAtrule(s: ParserState): Atrule | null {
   const startTok = peek(s)
   if (startTok.type !== TokenType.AtKeyword)
     return null
-  consume(s)
+  s.pos++
   const name = s.source.slice(startTok.start + 1, startTok.end).toLowerCase()
 
-  // collect prelude tokens until ; or {
+  // Collect prelude tokens until ; or { — pre-scan for the boundary.
   skipWhitespace(s)
-  const preludeStart = peek(s)
-  let preludeEndTok = preludeStart
-  while (peekType(s) !== TokenType.EOF
-    && peekType(s) !== TokenType.Semicolon
-    && peekType(s) !== TokenType.LeftCurlyBracket) {
-    preludeEndTok = consume(s)
+  const preludeStartPos = s.pos
+  const preludeStartTok = peek(s)
+  const types = s.types
+  const tend = s.end
+  let scanPos = preludeStartPos
+  let preludeEndPos = preludeStartPos
+  while (scanPos < tend) {
+    const t = types[scanPos]!
+    if (t === TokenType.EOF || t === TokenType.Semicolon || t === TokenType.LeftCurlyBracket)
+      break
+    if (t !== TokenType.WhiteSpace && t !== TokenType.Comment)
+      preludeEndPos = scanPos + 1
+    scanPos++
   }
 
   let prelude: AtrulePrelude | Raw | null = null
-  if (preludeStart !== peek(s)) {
-    const raw = s.source.slice(preludeStart.start, preludeEndTok.end).trim()
+  if (preludeEndPos > preludeStartPos) {
+    const preludeStartByte = s.starts[preludeStartPos]!
+    const preludeEndByte = s.ends[preludeEndPos - 1]!
+    const preludeEndTok: Token = { type: types[preludeEndPos - 1]! as TokenType, start: s.starts[preludeEndPos - 1]!, end: preludeEndByte }
+    const raw = s.source.slice(preludeStartByte, preludeEndByte).trim()
     if (raw.length > 0) {
       if (s.parseAtrulePrelude) {
-        // Always attempt to parse — fall back to Raw if parsing produces
-        // nothing useful or throws. No more hardcoded at-rule whitelist:
-        // custom at-rules (`@property`, `@scope`, `@layer`, future specs)
-        // get a parsed prelude too.
-        //
-        // Whitespace IS preserved in at-rule preludes: media queries treat
-        // it as significant (`screen and (...)`), and so do `@layer foo, bar`
-        // and `@import url('x') screen`. `parseValueChild` emits a single
-        // WhiteSpace node per whitespace run which the generator turns
-        // back into one space.
         try {
-          const sub = makeState(raw, { positions: false })
-          sub.onParseError = s.onParseError
+          // Run the prelude parser on the existing token stream — temporarily
+          // restrict `s.end` to the prelude boundary so the loop sees EOF.
+          const savedEnd = s.end
+          const savedPos = s.pos
+          s.end = preludeEndPos
+          s.pos = preludeStartPos
           const children = newList<CssNode>()
-          while (peekType(sub) !== TokenType.EOF) {
-            const node = parseValueChild(sub)
+          while (peekType(s) !== TokenType.EOF) {
+            const node = parseValueChild(s)
             if (node)
               children.appendData(node)
           }
-          // The @media `(aspect-ratio: 16/9)` form lives inside Parens
-          // here — promote the Number/Operator(/)/Number triples in
-          // every container to Ratio nodes, recursively.
           promoteRatiosDeep(children)
+          s.end = savedEnd
+          s.pos = scanPos // skip to after the prelude tokens
+          // Restore-or-advance: we want pos to end up at the ; or { token,
+          // which is where `scanPos` already points. (If the original loop
+          // had walked to scanPos via consume()s, that's the same place.)
+          void savedPos
           if (children.isEmpty)
-            prelude = rawNode(raw, preludeStart, preludeEndTok, s)
+            prelude = rawNode(raw, preludeStartTok, preludeEndTok, s)
           else
             prelude = { type: 'AtrulePrelude', children, loc: null }
         }
         catch (err) {
-          const fallback = rawNode(raw, preludeStart, preludeEndTok, s)
-          reportError(s, `Failed to parse @${name} prelude: ${(err as Error).message}`, preludeStart, fallback)
+          const fallback = rawNode(raw, preludeStartTok, preludeEndTok, s)
+          reportError(s, `Failed to parse @${name} prelude: ${(err as Error).message}`, preludeStartTok, fallback)
           prelude = fallback
+          s.pos = scanPos
         }
       }
       else {
-        prelude = rawNode(raw, preludeStart, preludeEndTok, s)
+        prelude = rawNode(raw, preludeStartTok, preludeEndTok, s)
+        s.pos = scanPos
       }
     }
+    else {
+      s.pos = scanPos
+    }
+  }
+  else {
+    s.pos = scanPos
   }
 
   let block: Block | null = null
@@ -536,88 +561,134 @@ function parseDeclaration(s: ParserState): Declaration | null {
   skipWhitespace(s)
   const startTok = peek(s)
   if (startTok.type !== TokenType.Ident && startTok.type !== TokenType.Hash && !(startTok.type === TokenType.Delim && s.source[startTok.start] === '*' && s.source[startTok.start + 1] === ' ')) {
-    // Custom property starts with --, which is tokenised as ident
     if (startTok.type === TokenType.Delim && s.source[startTok.start] === '*') {
       // ie *property
-      consume(s)
+      s.pos++
     }
     else {
-      // skip junk to next ;
       reportError(s, `Expected property name`, startTok, { type: 'Raw', value: '', loc: null })
-      while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.Semicolon && peekType(s) !== TokenType.RightCurlyBracket)
-        consume(s)
+      const types = s.types
+      const end = s.end
+      while (s.pos < end) {
+        const t = types[s.pos]!
+        if (t === TokenType.EOF || t === TokenType.Semicolon || t === TokenType.RightCurlyBracket)
+          break
+        s.pos++
+      }
       return null
     }
   }
-  const propTok = consume(s)
-  let property = s.source.slice(propTok.start, propTok.end)
-  // optional `*property` IE hack — already handled via leading delim
-  // optional vendor prefix already part of ident
+  const propStart = s.starts[s.pos]!
+  const propEnd = s.ends[s.pos]!
+  s.pos++
+  let property = s.source.slice(propStart, propEnd)
 
   skipWhitespaceOnly(s)
   if (peekType(s) !== TokenType.Colon) {
-    // not a declaration — recover
     reportError(s, `Expected ':' after property "${property}"`, peek(s), { type: 'Raw', value: '', loc: null })
-    while (peekType(s) !== TokenType.EOF && peekType(s) !== TokenType.Semicolon && peekType(s) !== TokenType.RightCurlyBracket)
-      consume(s)
+    const types = s.types
+    const end = s.end
+    while (s.pos < end) {
+      const t = types[s.pos]!
+      if (t === TokenType.EOF || t === TokenType.Semicolon || t === TokenType.RightCurlyBracket)
+        break
+      s.pos++
+    }
     return null
   }
-  consume(s) // :
+  s.pos++ // :
 
-  // collect value tokens up to ; or }
   skipWhitespaceOnly(s)
-  const valueStartTok = peek(s)
-  let valueEndTok = valueStartTok
-  let importantTok: Token | null = null
-
-  while (peekType(s) !== TokenType.EOF
-    && peekType(s) !== TokenType.Semicolon
-    && peekType(s) !== TokenType.RightCurlyBracket) {
-    const lookaheadTok = peek(s)
-    if (lookaheadTok.type === TokenType.Delim && s.source[lookaheadTok.start] === '!') {
-      // potential !important — preserve current valueEndTok and try to advance
-      const before = valueEndTok
-      s.pos++ // consume the `!`
-      while (s.pos < s.count && s.types[s.pos]! === TokenType.WhiteSpace)
-        s.pos++
-      const next: Token | null = s.pos < s.count
-        ? { type: s.types[s.pos]! as TokenType, start: s.starts[s.pos]!, end: s.ends[s.pos]! }
-        : null
-      if (next && next.type === TokenType.Ident && s.source.slice(next.start, next.end).toLowerCase() === 'important') {
-        importantTok = next
-        valueEndTok = before // exclude the `!important` from the value text
-        s.pos++
-        continue
+  // Pre-scan the value token range. We track:
+  //   - lastNonWsPos: index after the last non-whitespace value token
+  //     (where the parsable value ends — excludes trailing whitespace/!important)
+  //   - importantPos: position of the `important` ident if !important detected
+  //   - endPos: stop position (Semicolon/RightCurly/EOF)
+  // This avoids re-tokenizing the value text — the parser walks the
+  // already-tokenised stream directly.
+  const types = s.types
+  const starts = s.starts
+  const tend = s.end
+  const valueStartPos = s.pos
+  let scanPos = valueStartPos
+  let lastNonWsPos = valueStartPos
+  let importantIdentPos = -1
+  let bangPos = -1
+  while (scanPos < tend) {
+    const t = types[scanPos]!
+    if (t === TokenType.EOF || t === TokenType.Semicolon || t === TokenType.RightCurlyBracket)
+      break
+    if (t === TokenType.Delim && s.source.charCodeAt(starts[scanPos]!) === 33 /* ! */) {
+      // potential !important — peek next non-ws
+      let look = scanPos + 1
+      while (look < tend && types[look]! === TokenType.WhiteSpace) look++
+      if (look < tend && types[look]! === TokenType.Ident) {
+        const ts = starts[look]!
+        const te = s.ends[look]!
+        // Inline lowercase compare for "important" (9 chars)
+        if (te - ts === 9
+          && (s.source.charCodeAt(ts) | 32) === 105
+          && (s.source.charCodeAt(ts + 1) | 32) === 109
+          && (s.source.charCodeAt(ts + 2) | 32) === 112
+          && (s.source.charCodeAt(ts + 3) | 32) === 111
+          && (s.source.charCodeAt(ts + 4) | 32) === 114
+          && (s.source.charCodeAt(ts + 5) | 32) === 116
+          && (s.source.charCodeAt(ts + 6) | 32) === 97
+          && (s.source.charCodeAt(ts + 7) | 32) === 110
+          && (s.source.charCodeAt(ts + 8) | 32) === 116) {
+          bangPos = scanPos
+          importantIdentPos = look
+          scanPos = look + 1
+          continue
+        }
       }
-      // not important — fall back: include the `!` in the value
-      valueEndTok = lookaheadTok
-      continue
     }
-    const t = consume(s)
-    valueEndTok = t
+    if (t !== TokenType.WhiteSpace && t !== TokenType.Comment)
+      lastNonWsPos = scanPos + 1
+    scanPos++
   }
 
-  let valueText: string
-  if (importantTok) {
-    valueText = s.source.slice(valueStartTok.start, valueEndTok.end).trim()
-  }
-  else {
-    valueText = s.source.slice(valueStartTok.start, valueEndTok.end).trim()
-  }
+  // The value range, parser-relative: [valueStartPos, valueEndPos).
+  // `lastNonWsPos` already excludes both the trailing whitespace AND the
+  // !important suffix because we don't update it inside the bang branch.
+  void bangPos
+  const valueEndPos = lastNonWsPos
+  const importantTok: Token | null = importantIdentPos >= 0
+    ? { type: TokenType.Ident, start: starts[importantIdentPos]!, end: s.ends[importantIdentPos]! }
+    : null
+
   property = property.trim()
 
   const isCustom = property.startsWith('--')
   let value: Value | Raw
+  const valueStartByte = starts[valueStartPos]!
+  const valueEndByte = valueEndPos > valueStartPos ? s.ends[valueEndPos - 1]! : valueStartByte
+  const valueStartTok: Token = { type: types[valueStartPos]! as TokenType, start: valueStartByte, end: s.ends[valueStartPos]! }
+  const valueEndTok: Token = valueEndPos > valueStartPos
+    ? { type: types[valueEndPos - 1]! as TokenType, start: starts[valueEndPos - 1]!, end: valueEndByte }
+    : valueStartTok
+
   if ((isCustom && !s.parseCustomProperty) || !s.parseValue) {
+    const valueText = s.source.slice(valueStartByte, valueEndByte).trim()
     value = { type: 'Raw', value: valueText, loc: loc(s, valueStartTok, valueEndTok) }
   }
-  else if (valueText.length === 0) {
+  else if (valueEndPos === valueStartPos) {
     value = { type: 'Value', children: newList<CssNode>(), loc: loc(s, valueStartTok, valueEndTok) }
   }
   else {
-    const sub = makeState(valueText, { positions: false })
-    value = parseValueChildren(sub)
+    // Run parseValueChildren on the existing token stream by temporarily
+    // shrinking `s.end` to the value boundary so the parser sees a virtual
+    // EOF at the right place. No re-tokenization required.
+    const savedEnd = s.end
+    s.end = valueEndPos
+    s.pos = valueStartPos
+    value = parseValueChildren(s)
+    s.end = savedEnd
   }
+
+  // Position the parser at the boundary token (Semicolon / RightCurly / EOF).
+  // `scanPos` already advanced past !important when it was detected.
+  s.pos = scanPos
 
   return {
     type: 'Declaration',
@@ -705,64 +776,115 @@ function promoteRatios(list: CssList<CssNode>): void {
 }
 
 function parseValueChild(s: ParserState): CssNode | null {
-  const t = peek(s)
-  switch (t.type) {
+  const i = s.pos
+  if (i >= s.end)
+    return null
+  const ttype = s.types[i]! as TokenType
+  const tstart = s.starts[i]!
+  const tend = s.ends[i]!
+  const src = s.source
+  switch (ttype) {
     case TokenType.WhiteSpace: {
-      consume(s)
-      const node: WhiteSpaceNode = { type: 'WhiteSpace', value: ' ', loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return s.positions
+        ? { type: 'WhiteSpace', value: ' ', loc: locRange(s, tstart, tend) }
+        : { type: 'WhiteSpace', value: ' ', loc: null }
     }
     case TokenType.Comment: {
-      consume(s)
-      return makeComment(s, t)
+      s.pos++
+      return { type: 'Comment', value: src.slice(tstart + 2, tend - 2), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Number: {
-      consume(s)
-      const node: NumberNode = { type: 'Number', value: tokenSlice(s, t), loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Number', value: src.slice(tstart, tend), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Percentage: {
-      consume(s)
-      const node: PercentageNode = { type: 'Percentage', value: s.source.slice(t.start, t.end - 1), loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Percentage', value: src.slice(tstart, tend - 1), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Dimension: {
-      consume(s)
-      const text = tokenSlice(s, t)
-      const m = /^([+-]?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?)(.+)$/.exec(text)!
-      const node: DimensionNode = { type: 'Dimension', value: m[1]!, unit: m[2]!, loc: loc(s, t, t) }
-      return node
+      s.pos++
+      // Manual scan: number portion ends where the unit (alpha/`-`/escape)
+      // begins. Faster than the previous regex.
+      let unitStart = tstart
+      // optional sign
+      const c0 = src.charCodeAt(unitStart)
+      if (c0 === 43 /* + */ || c0 === 45 /* - */)
+        unitStart++
+      // integer/fractional digits and a single dot
+      let sawDot = false
+      while (unitStart < tend) {
+        const c = src.charCodeAt(unitStart)
+        if (c >= 48 && c <= 57) {
+          unitStart++
+          continue
+        }
+        if (c === 46 && !sawDot) {
+          sawDot = true
+          unitStart++
+          continue
+        }
+        break
+      }
+      // optional scientific notation
+      const eC = src.charCodeAt(unitStart)
+      if ((eC === 69 || eC === 101) /* e/E */) {
+        let look = unitStart + 1
+        const sgn = src.charCodeAt(look)
+        if (sgn === 43 || sgn === 45) look++
+        let any = false
+        while (look < tend) {
+          const c = src.charCodeAt(look)
+          if (c >= 48 && c <= 57) { look++; any = true; continue }
+          break
+        }
+        if (any) unitStart = look
+      }
+      return {
+        type: 'Dimension',
+        value: src.slice(tstart, unitStart),
+        unit: src.slice(unitStart, tend),
+        loc: s.positions ? locRange(s, tstart, tend) : null,
+      }
     }
     case TokenType.Ident: {
-      consume(s)
-      const node: Identifier = { type: 'Identifier', name: decodeName(s.source, t.start, t.end), loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Identifier', name: decodeName(src, tstart, tend), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.String: {
-      consume(s)
-      // Drop the surrounding quotes and decode escapes (`\"` → `"`,
-      // `\26 ` → `&`, etc.) so the AST holds the actual string value.
-      const innerStart = t.start + 1
-      const closesProperly = t.end - t.start >= 2 && s.source.charCodeAt(t.end - 1) === s.source.charCodeAt(t.start)
-      const innerEnd = closesProperly ? t.end - 1 : t.end
-      const value = decodeString(s.source, innerStart, innerEnd)
-      const node: StringNode = { type: 'String', value, loc: loc(s, t, t) }
-      return node
+      s.pos++
+      const innerStart = tstart + 1
+      const closesProperly = tend - tstart >= 2 && src.charCodeAt(tend - 1) === src.charCodeAt(tstart)
+      const innerEnd = closesProperly ? tend - 1 : tend
+      const value = decodeString(src, innerStart, innerEnd)
+      return { type: 'String', value, loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Url: {
-      consume(s)
-      const slice = tokenSlice(s, t)
-      const inner = slice.replace(/^url\(\s*/i, '').replace(/\s*\)$/, '')
-      const value = inner.length >= 2 && (inner[0] === '"' || inner[0] === '\'') && inner.endsWith(inner[0]!)
-        ? inner.slice(1, -1)
-        : inner
-      const node: UrlNode = { type: 'Url', value, loc: loc(s, t, t) }
-      return node
+      s.pos++
+      // url(<inner>) — strip `url(` and the matching `)` (and any quotes
+      // on the inner if present), avoiding a regex+slice chain.
+      let a = tstart + 4 // past `url(`
+      while (a < tend && isWhitespaceCode(src.charCodeAt(a))) a++
+      let b = tend
+      if (b > a && src.charCodeAt(b - 1) === 41 /* ) */) b--
+      while (b > a && isWhitespaceCode(src.charCodeAt(b - 1))) b--
+      let value: string
+      if (b - a >= 2) {
+        const q0 = src.charCodeAt(a)
+        const q1 = src.charCodeAt(b - 1)
+        if ((q0 === 34 || q0 === 39) && q0 === q1)
+          value = src.slice(a + 1, b - 1)
+        else
+          value = src.slice(a, b)
+      }
+      else {
+        value = src.slice(a, b)
+      }
+      return { type: 'Url', value, loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Hash: {
-      consume(s)
-      const node: HashNode = { type: 'Hash', name: s.source.slice(t.start + 1, t.end), loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Hash', name: src.slice(tstart + 1, tend), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Function: {
       return parseFunction(s)
@@ -771,24 +893,19 @@ function parseValueChild(s: ParserState): CssNode | null {
       return parseParentheses(s)
     }
     case TokenType.Comma: {
-      consume(s)
-      const node: OperatorNode = { type: 'Operator', value: ',', loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Operator', value: ',', loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Colon: {
-      consume(s)
-      const node: OperatorNode = { type: 'Operator', value: ':', loc: loc(s, t, t) }
-      return node
+      s.pos++
+      return { type: 'Operator', value: ':', loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.Delim: {
-      consume(s)
-      const ch = s.source[t.start]!
-      if (ch === '/' || ch === '+' || ch === '-' || ch === '*' || ch === '=' || ch === '>' || ch === '<' || ch === '~' || ch === '|' || ch === '$' || ch === '^' || ch === '!' || ch === '&') {
-        const node: OperatorNode = { type: 'Operator', value: ch, loc: loc(s, t, t) }
-        return node
-      }
-      const node: Identifier = { type: 'Identifier', name: ch, loc: loc(s, t, t) }
-      return node
+      s.pos++
+      const ch = src[tstart]!
+      if (ch === '/' || ch === '+' || ch === '-' || ch === '*' || ch === '=' || ch === '>' || ch === '<' || ch === '~' || ch === '|' || ch === '$' || ch === '^' || ch === '!' || ch === '&')
+        return { type: 'Operator', value: ch, loc: s.positions ? locRange(s, tstart, tend) : null }
+      return { type: 'Identifier', name: ch, loc: s.positions ? locRange(s, tstart, tend) : null }
     }
     case TokenType.AtKeyword:
     case TokenType.LeftSquareBracket:
@@ -802,12 +919,26 @@ function parseValueChild(s: ParserState): CssNode | null {
     case TokenType.CDC:
     case TokenType.BadString:
     case TokenType.BadUrl: {
-      consume(s)
-      return { type: 'Raw', value: tokenSlice(s, t), loc: loc(s, t, t) }
+      s.pos++
+      return { type: 'Raw', value: src.slice(tstart, tend), loc: s.positions ? locRange(s, tstart, tend) : null }
     }
   }
-  consume(s)
+  s.pos++
   return null
+}
+
+function isWhitespaceCode(c: number): boolean {
+  return c === 32 || c === 9 || c === 10 || c === 12 || c === 13
+}
+
+function locRange(s: ParserState, startByte: number, endByte: number): CssLocation {
+  const start = s.tokenizer.locate(startByte)
+  const end = s.tokenizer.locate(endByte)
+  return {
+    source: s.filename ?? '<unknown>',
+    start: { offset: startByte, line: start.line, column: start.column },
+    end: { offset: endByte, line: end.line, column: end.column },
+  }
 }
 
 function parseFunction(s: ParserState): CssNode {

@@ -8,7 +8,9 @@
 
 import type { ParseOptions, Selector } from './types'
 
-const RE_NAME = /^(?:\\(?:[\dA-Fa-f]{1,6} ?|[^])|[\w\-°-￿])+/
+// Sticky regexes: `y` lets us match from a specific index without slicing.
+// Using `lastIndex` directly keeps the parser allocation-light per name.
+const RE_NAME_STICKY = /(?:\\(?:[\dA-Fa-f]{1,6} ?|[^])|[\w\-°-￿])+/y
 const RE_ESCAPE = /\\([\dA-Fa-f]{1,6} ?|[^])/g
 
 function unescape(name: string): string {
@@ -23,13 +25,10 @@ function unescape(name: string): string {
   })
 }
 
-const ACTIONS: Record<string, string> = {
-  '~': 'element',
-  '^': 'start',
-  '$': 'end',
-  '*': 'any',
-  '!': 'not',
-  '|': 'hyphen',
+function unescapeIfNeeded(name: string): string {
+  // Vast majority of CSS selector identifiers have no `\\` escapes — skip
+  // the regex replace pipeline and return the string directly.
+  return name.indexOf('\\') < 0 ? name : unescape(name)
 }
 
 const ATTRIBUTES_QUIRKS = new Set([
@@ -42,298 +41,323 @@ const ATTRIBUTES_QUIRKS = new Set([
   'type', 'valign', 'valuetype', 'vlink',
 ])
 
+// Action-string lookup as a plain function (no per-parse Map).
+function actionFromChar(ch: number): string | null {
+  switch (ch) {
+    case 126 /* ~ */: return 'element'
+    case 94 /* ^ */: return 'start'
+    case 36 /* $ */: return 'end'
+    case 42 /* * */: return 'any'
+    case 33 /* ! */: return 'not'
+    case 124 /* | */: return 'hyphen'
+    default: return null
+  }
+}
+
+function isWsCode(c: number): boolean {
+  return c === 32 || c === 9 || c === 10 || c === 13 || c === 12
+}
+
 export function parse(selector: string, options: ParseOptions = {}): Selector[][] {
   const subselects: Selector[][] = []
-  const endIndex = parseSelector(subselects, `${selector}`, options, 0)
+  const endIndex = parseSelectorImpl(subselects, selector, options, 0)
   if (endIndex < selector.length)
     throw new Error(`Unmatched selector: ${selector.slice(endIndex)}`)
   return subselects
 }
 
-function parseSelector(subselects: Selector[][], selector: string, options: ParseOptions, selectorIndex: number): number {
+function readName(selector: string, from: number): { value: string, end: number } {
+  RE_NAME_STICKY.lastIndex = from
+  const m = RE_NAME_STICKY.exec(selector)
+  if (!m)
+    throw new Error(`Expected name, found ${selector.slice(from)}`)
+  return { value: unescapeIfNeeded(m[0]), end: from + m[0].length }
+}
+
+function stripWS(selector: string, from: number): number {
+  while (from < selector.length && isWsCode(selector.charCodeAt(from)))
+    from++
+  return from
+}
+
+function parseSelectorImpl(subselects: Selector[][], selector: string, options: ParseOptions, startIndex: number): number {
   let tokens: Selector[] = []
+  let i = stripWS(selector, startIndex)
+  const len = selector.length
+  const xmlMode = options.xmlMode === true
+  const lowerCaseAttrs = options.lowerCaseAttributeNames !== false && !xmlMode
+  const lowerCaseTagsFlag = options.lowerCaseTags !== false
 
-  function getName(offset: number): string {
-    const sub = selector.slice(selectorIndex + offset)
-    const m = RE_NAME.exec(sub)
-    if (!m)
-      throw new Error(`Expected name, found ${sub}`)
-    selectorIndex += offset + m[0].length
-    return unescape(m[0])
-  }
+  while (i < len) {
+    const code = selector.charCodeAt(i)
 
-  function stripWS(start: number): void {
-    while (selectorIndex + start < selector.length && isWhitespace(selector.charAt(selectorIndex + start)))
-      start++
-    selectorIndex += start
-  }
-
-  function isEscaped(pos: number): boolean {
-    let backslashes = 0
-    while (selector.charAt(--pos) === '\\') backslashes++
-    return (backslashes & 1) === 1
-  }
-
-  stripWS(0)
-  while (selector !== '') {
-    const firstChar = selector.charAt(selectorIndex)
-
-    if (isWhitespace(firstChar)) {
-      let trimmed = 1
-      while (isWhitespace(selector.charAt(selectorIndex + trimmed)))
+    // whitespace → descendant combinator (or just trim if at start)
+    if (isWsCode(code)) {
+      let trimmed = i + 1
+      while (trimmed < len && isWsCode(selector.charCodeAt(trimmed)))
         trimmed++
       if (tokens.length === 0)
-        return selectorIndex
-      stripWS(trimmed)
+        return trimmed
+      i = trimmed
       addTraversal(tokens, 'descendant')
+      continue
     }
-    else if (firstChar === '>' || firstChar === '<' || firstChar === '~' || firstChar === '+' || firstChar === '|') {
-      // combinator
-      while (selectorIndex < selector.length && isWhitespace(selector.charAt(selectorIndex + 1)))
-        selectorIndex++
-      stripWS(1)
-      switch (firstChar) {
-        case '>': addTraversal(tokens, 'child'); break
-        case '<': addTraversal(tokens, 'parent'); break
-        case '~': addTraversal(tokens, 'sibling'); break
-        case '+': addTraversal(tokens, 'adjacent'); break
-        case '|':
-          if (selector.charAt(selectorIndex) === '|') {
-            selectorIndex++
-            stripWS(0)
+
+    // explicit combinators
+    if (code === 62 /* > */ || code === 60 /* < */ || code === 126 /* ~ */ || code === 43 /* + */ || code === 124 /* | */) {
+      let j = i + 1
+      while (j < len && isWsCode(selector.charCodeAt(j))) j++
+      i = j
+      switch (code) {
+        case 62: addTraversal(tokens, 'child'); break
+        case 60: addTraversal(tokens, 'parent'); break
+        case 126: addTraversal(tokens, 'sibling'); break
+        case 43: addTraversal(tokens, 'adjacent'); break
+        case 124:
+          if (i < len && selector.charCodeAt(i) === 124) {
+            i++
+            i = stripWS(selector, i)
             addTraversal(tokens, 'column-combinator')
           }
           else {
-            // namespace-only — treat as part of next tag
             tokens.push({ type: 'tag', name: '', namespace: '' })
           }
           break
       }
+      continue
     }
-    else if (firstChar === ',') {
+
+    if (code === 44 /* , */) {
       if (tokens.length === 0)
         throw new Error('Empty sub-selector')
       subselects.push(tokens)
       tokens = []
-      stripWS(1)
+      i = stripWS(selector, i + 1)
+      continue
     }
-    else if (selector.startsWith('/*', selectorIndex)) {
-      const end = selector.indexOf('*/', selectorIndex + 2)
+
+    // comment /* ... */
+    if (code === 47 /* / */ && selector.charCodeAt(i + 1) === 42 /* * */) {
+      const end = selector.indexOf('*/', i + 2)
       if (end < 0)
         throw new Error('Unmatched comment')
-      selectorIndex = end + 2
-      stripWS(0)
+      i = stripWS(selector, end + 2)
+      continue
     }
-    else {
-      if (firstChar === '*') {
-        selectorIndex++
-        tokens.push({ type: 'universal', namespace: null })
-      }
-      else if ('><~+'.includes(firstChar)) {
-        // shouldn't reach
-      }
-      else if (firstChar === '#') {
-        const name = getName(1)
-        tokens.push({
-          type: 'attribute',
-          name: 'id',
-          action: 'equals',
-          value: name,
-          namespace: null,
-          ignoreCase: false,
-        })
-      }
-      else if (firstChar === '.') {
-        const name = getName(1)
-        tokens.push({
-          type: 'attribute',
-          name: 'class',
-          action: 'element',
-          value: name,
-          namespace: null,
-          ignoreCase: false,
-        })
-      }
-      else if (firstChar === '[') {
-        // attribute selector
-        const sub = selector.slice(selectorIndex + 1)
-        let attribute: string
-        let nameEnd = 0
-        // namespace-prefixed?
-        if (sub.charAt(0) === '|') {
-          throw new Error('Empty namespace not supported')
-        }
-        else if (sub.charAt(0) === '*' && sub.charAt(1) === '|') {
-          nameEnd = 2
-          attribute = getName(3)
-        }
-        else {
-          // just name
-          const m = RE_NAME.exec(sub)
-          if (!m)
-            throw new Error(`Expected attribute name, got ${sub}`)
-          nameEnd = m[0].length
-          attribute = unescape(m[0])
-          selectorIndex += 1 + nameEnd
-          // namespace?
-          if (selector.charAt(selectorIndex) === '|' && selector.charAt(selectorIndex + 1) !== '=') {
-            selectorIndex++
-            const m2 = RE_NAME.exec(selector.slice(selectorIndex))
-            if (!m2)
-              throw new Error('expected attr name after namespace')
-            selectorIndex += m2[0].length
-            attribute = unescape(m2[0])
-          }
-        }
-        stripWS(0)
-        let action: 'exists' | 'equals' | 'element' | 'start' | 'end' | 'any' | 'not' | 'hyphen' = 'exists'
-        let value = ''
-        let ignoreCase: boolean | null = null
-        const ch = selector.charAt(selectorIndex)
-        if (ch === '=') {
-          action = 'equals'
-          selectorIndex++
-        }
-        else if (ch === '!' && selector.charAt(selectorIndex + 1) === '=') {
-          action = 'not'
-          selectorIndex += 2
-        }
-        else if ((ACTIONS as any)[ch] && selector.charAt(selectorIndex + 1) === '=') {
-          action = (ACTIONS as any)[ch]
-          selectorIndex += 2
-        }
-        if (action !== 'exists') {
-          stripWS(0)
-          const q = selector.charAt(selectorIndex)
-          if (q === '"' || q === '\'') {
-            const end = findEndOfString(selector, selectorIndex + 1, q)
-            value = unescape(selector.slice(selectorIndex + 1, end))
-            selectorIndex = end + 1
-          }
-          else {
-            const m3 = RE_NAME.exec(selector.slice(selectorIndex))
-            if (!m3)
-              throw new Error('expected value')
-            value = unescape(m3[0])
-            selectorIndex += m3[0].length
-          }
-          stripWS(0)
-          // case flag
-          const flag = selector.charAt(selectorIndex)
-          if (flag === 'i' || flag === 'I') {
-            ignoreCase = true
-            selectorIndex++
-          }
-          else if (flag === 's' || flag === 'S') {
-            ignoreCase = false
-            selectorIndex++
-          }
-        }
-        if (selector.charAt(selectorIndex) !== ']')
-          throw new Error('Expected ]')
-        selectorIndex++
-        if (ignoreCase === null) {
-          // quirks-mode default for HTML attributes
-          if (!options.xmlMode && ATTRIBUTES_QUIRKS.has(attribute.toLowerCase()))
-            ignoreCase = 'quirks' as any
-        }
-        tokens.push({
-          type: 'attribute',
-          name: options.lowerCaseAttributeNames !== false && !options.xmlMode ? attribute.toLowerCase() : attribute,
-          action,
-          value,
-          namespace: null,
-          ignoreCase,
-        })
-      }
-      else if (firstChar === ':') {
-        if (selector.charAt(selectorIndex + 1) === ':') {
-          // pseudo-element
-          selectorIndex += 2
-          const name = getName(0).toLowerCase()
-          let data: string | null = null
-          if (selector.charAt(selectorIndex) === '(') {
-            const end = findClose(selector, selectorIndex)
-            data = selector.slice(selectorIndex + 1, end).trim()
-            selectorIndex = end + 1
-          }
-          tokens.push({ type: 'pseudo-element', name, data })
-        }
-        else {
-          selectorIndex += 1
-          const name = getName(0).toLowerCase()
-          if (selector.charAt(selectorIndex) === '(') {
-            const end = findClose(selector, selectorIndex)
-            const inner = selector.slice(selectorIndex + 1, end)
-            selectorIndex = end + 1
-            // selector-list pseudos
-            if (name === 'is' || name === 'not' || name === 'where' || name === 'has' || name === 'matches' || name === '-moz-any' || name === '-webkit-any') {
-              const sub: Selector[][] = []
-              parseSelector(sub, inner.trim(), options, 0)
-              tokens.push({ type: 'pseudo', name, data: sub })
-            }
-            else {
-              tokens.push({ type: 'pseudo', name, data: inner.trim() })
-            }
-          }
-          else {
-            tokens.push({ type: 'pseudo', name, data: null })
-          }
-        }
+
+    if (code === 42 /* * */) {
+      i++
+      tokens.push({ type: 'universal', namespace: null })
+      continue
+    }
+
+    if (code === 35 /* # */) {
+      const r = readName(selector, i + 1)
+      i = r.end
+      tokens.push({
+        type: 'attribute',
+        name: 'id',
+        action: 'equals',
+        value: r.value,
+        namespace: null,
+        ignoreCase: false,
+      })
+      continue
+    }
+
+    if (code === 46 /* . */) {
+      const r = readName(selector, i + 1)
+      i = r.end
+      tokens.push({
+        type: 'attribute',
+        name: 'class',
+        action: 'element',
+        value: r.value,
+        namespace: null,
+        ignoreCase: false,
+      })
+      continue
+    }
+
+    if (code === 91 /* [ */) {
+      i = parseAttribute(selector, i, tokens, options, xmlMode, lowerCaseAttrs)
+      continue
+    }
+
+    if (code === 58 /* : */) {
+      i = parsePseudo(selector, i, tokens, options)
+      continue
+    }
+
+    // tag selector — readName then optional `|tag`
+    if (code === 124 /* | */) {
+      i++
+      const r = readName(selector, i)
+      i = r.end
+      tokens.push({ type: 'tag', name: lowerCaseTagsFlag ? r.value.toLowerCase() : r.value, namespace: '' })
+      continue
+    }
+
+    {
+      const r1 = readName(selector, i)
+      i = r1.end
+      if (i < len && selector.charCodeAt(i) === 124 /* | */ && selector.charCodeAt(i + 1) !== 61 /* = */) {
+        i++
+        const r2 = readName(selector, i)
+        i = r2.end
+        tokens.push({ type: 'tag', name: lowerCaseTagsFlag ? r2.value.toLowerCase() : r2.value, namespace: r1.value })
       }
       else {
-        // tag selector
-        let name = ''
-        if (firstChar === '|') {
-          // |tag — no namespace
-          selectorIndex++
-          name = getName(0)
-          tokens.push({ type: 'tag', name: options.lowerCaseTags !== false ? name.toLowerCase() : name, namespace: '' })
-        }
-        else {
-          name = getName(0)
-          if (selector.charAt(selectorIndex) === '|') {
-            selectorIndex++
-            const tag = getName(0)
-            tokens.push({ type: 'tag', name: options.lowerCaseTags !== false ? tag.toLowerCase() : tag, namespace: name })
-          }
-          else {
-            tokens.push({ type: 'tag', name: options.lowerCaseTags !== false ? name.toLowerCase() : name, namespace: null })
-          }
-        }
+        tokens.push({ type: 'tag', name: lowerCaseTagsFlag ? r1.value.toLowerCase() : r1.value, namespace: null })
       }
     }
-    if (selectorIndex >= selector.length)
-      break
   }
   if (tokens.length > 0)
     subselects.push(tokens)
-  return selectorIndex
+  return i
 }
 
-function isWhitespace(c: string): boolean {
-  return c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f'
+function parseAttribute(selector: string, idx: number, tokens: Selector[], options: ParseOptions, xmlMode: boolean, lowerCaseAttrs: boolean): number {
+  let i = idx + 1
+  const len = selector.length
+  let attribute: string
+  if (selector.charCodeAt(i) === 124 /* | */)
+    throw new Error('Empty namespace not supported')
+  if (selector.charCodeAt(i) === 42 /* * */ && selector.charCodeAt(i + 1) === 124 /* | */) {
+    i += 2
+    const r = readName(selector, i)
+    i = r.end
+    attribute = r.value
+  }
+  else {
+    const r = readName(selector, i)
+    i = r.end
+    attribute = r.value
+    if (selector.charCodeAt(i) === 124 /* | */ && selector.charCodeAt(i + 1) !== 61 /* = */) {
+      i++
+      const r2 = readName(selector, i)
+      i = r2.end
+      attribute = r2.value
+    }
+  }
+  i = stripWS(selector, i)
+  let action: 'exists' | 'equals' | 'element' | 'start' | 'end' | 'any' | 'not' | 'hyphen' = 'exists'
+  let value = ''
+  let ignoreCase: boolean | null = null
+  const opCode = selector.charCodeAt(i)
+  if (opCode === 61 /* = */) {
+    action = 'equals'
+    i++
+  }
+  else if (opCode === 33 /* ! */ && selector.charCodeAt(i + 1) === 61) {
+    action = 'not'
+    i += 2
+  }
+  else {
+    const a = actionFromChar(opCode)
+    if (a !== null && selector.charCodeAt(i + 1) === 61) {
+      action = a as any
+      i += 2
+    }
+  }
+  if (action !== 'exists') {
+    i = stripWS(selector, i)
+    const q = selector.charCodeAt(i)
+    if (q === 34 /* " */ || q === 39 /* ' */) {
+      const end = findEndOfString(selector, i + 1, q)
+      value = unescapeIfNeeded(selector.slice(i + 1, end))
+      i = end + 1
+    }
+    else {
+      const r = readName(selector, i)
+      value = r.value
+      i = r.end
+    }
+    i = stripWS(selector, i)
+    const flag = selector.charCodeAt(i)
+    if (flag === 105 /* i */ || flag === 73 /* I */) {
+      ignoreCase = true
+      i++
+    }
+    else if (flag === 115 /* s */ || flag === 83 /* S */) {
+      ignoreCase = false
+      i++
+    }
+  }
+  if (selector.charCodeAt(i) !== 93 /* ] */)
+    throw new Error('Expected ]')
+  i++
+  if (ignoreCase === null && !xmlMode && ATTRIBUTES_QUIRKS.has(attribute.toLowerCase()))
+    ignoreCase = 'quirks' as any
+  void options
+  void len
+  tokens.push({
+    type: 'attribute',
+    name: lowerCaseAttrs ? attribute.toLowerCase() : attribute,
+    action,
+    value,
+    namespace: null,
+    ignoreCase,
+  })
+  return i
+}
+
+function parsePseudo(selector: string, idx: number, tokens: Selector[], options: ParseOptions): number {
+  if (selector.charCodeAt(idx + 1) === 58 /* : */) {
+    let i = idx + 2
+    const r = readName(selector, i)
+    i = r.end
+    const name = r.value.toLowerCase()
+    let data: string | null = null
+    if (selector.charCodeAt(i) === 40 /* ( */) {
+      const end = findClose(selector, i)
+      data = selector.slice(i + 1, end).trim()
+      i = end + 1
+    }
+    tokens.push({ type: 'pseudo-element', name, data })
+    return i
+  }
+  let i = idx + 1
+  const r = readName(selector, i)
+  i = r.end
+  const name = r.value.toLowerCase()
+  if (selector.charCodeAt(i) === 40 /* ( */) {
+    const end = findClose(selector, i)
+    const inner = selector.slice(i + 1, end)
+    i = end + 1
+    if (name === 'is' || name === 'not' || name === 'where' || name === 'has' || name === 'matches' || name === '-moz-any' || name === '-webkit-any') {
+      const sub: Selector[][] = []
+      parseSelectorImpl(sub, inner.trim(), options, 0)
+      tokens.push({ type: 'pseudo', name, data: sub })
+    }
+    else {
+      tokens.push({ type: 'pseudo', name, data: inner.trim() })
+    }
+  }
+  else {
+    tokens.push({ type: 'pseudo', name, data: null })
+  }
+  return i
 }
 
 function addTraversal(tokens: Selector[], type: 'adjacent' | 'child' | 'descendant' | 'parent' | 'sibling' | 'column-combinator'): void {
-  // Replace trailing descendant if a stronger combinator follows
-  if (tokens.length > 0 && tokens[tokens.length - 1]!.type === 'descendant' && type !== 'descendant') {
+  if (tokens.length > 0 && tokens[tokens.length - 1]!.type === 'descendant' && type !== 'descendant')
     tokens.pop()
-  }
-  if (tokens.length > 0 && (tokens[tokens.length - 1]!.type === type)) {
+  if (tokens.length > 0 && (tokens[tokens.length - 1]!.type === type))
     return
-  }
   tokens.push({ type } as any)
 }
 
-function findEndOfString(selector: string, start: number, q: string): number {
+function findEndOfString(selector: string, start: number, qCode: number): number {
   let i = start
-  while (i < selector.length) {
-    if (selector.charAt(i) === '\\') {
+  const len = selector.length
+  while (i < len) {
+    const c = selector.charCodeAt(i)
+    if (c === 92 /* \ */) {
       i += 2
       continue
     }
-    if (selector.charAt(i) === q)
+    if (c === qCode)
       return i
     i++
   }
@@ -343,15 +367,19 @@ function findEndOfString(selector: string, start: number, q: string): number {
 function findClose(selector: string, openParen: number): number {
   let depth = 1
   let i = openParen + 1
-  while (i < selector.length) {
-    const c = selector.charAt(i)
-    if (c === '\\') { i += 2; continue }
-    if (c === '"' || c === '\'') {
+  const len = selector.length
+  while (i < len) {
+    const c = selector.charCodeAt(i)
+    if (c === 92 /* \ */) { i += 2; continue }
+    if (c === 34 /* " */ || c === 39 /* ' */) {
       i = findEndOfString(selector, i + 1, c) + 1
       continue
     }
-    if (c === '(') depth++
-    else if (c === ')') { depth--; if (depth === 0) return i }
+    if (c === 40 /* ( */) depth++
+    else if (c === 41 /* ) */) {
+      depth--
+      if (depth === 0) return i
+    }
     i++
   }
   throw new Error('Unterminated parenthesis')

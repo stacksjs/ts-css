@@ -76,7 +76,9 @@ describe('selectAll', () => {
     expect(selectAll('p:not(#a)', tree, opts).length).toBe(1)
   })
   it('matches :has()', () => {
-    expect(selectAll('div:has(span.bar)', tree, opts).length).toBe(1)
+    // querySelector-style: passing a single root excludes the root itself
+    // (matches css-select). Wrap in `[tree]` to opt into root-as-candidate.
+    expect(selectAll('div:has(span.bar)', [tree], opts).length).toBe(1)
   })
   it('matches :nth-child', () => {
     expect(selectAll('p:nth-child(1)', tree, opts).length).toBe(1)

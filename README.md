@@ -2,26 +2,31 @@
 
 > Pure-TypeScript CSS toolkit for Bun & Node. Zero runtime dependencies.
 
-`ts-css` is a single, dependency-free package that replaces the four-library
-quartet most CSS pipelines pull in:
+`ts-css` is a CSS toolkit for build tools, linters, design-system pipelines,
+SSR templating, runtime style transforms — anything that needs to read,
+walk, query, transform, or minify CSS in a JS/TS environment. Written from
+scratch in TypeScript with strict types and the CSS Syntax Module Level 3
+tokenizer.
 
-| You used to install              | Now you only install         |
-| -------------------------------- | ---------------------------- |
-| `css-tree` `css-select` `css-what` `csso` | `@stacksjs/ts-css` |
-
-It's a drop-in for the API surface that real consumers (CSSO, SVGO, lint
-tools, design-system pipelines) actually touch — written from scratch in
-TypeScript with strict types, the CSS Syntax Module Level 3 tokenizer, and
-the `css-select` adapter pattern preserved verbatim so existing call sites
-don't change.
+It bundles every common CSS pipeline primitive — tokenizer, AST parser,
+visitor walker, generator, selector parser, selector matcher, and minifier —
+into a single zero-dep package. The shape of each sub-API mirrors the
+de-facto community standard for that capability (`css-tree`-style AST and
+walker, `css-what`-style selector tokens, the `css-select` adapter contract,
+`csso`-style minify result), so adopting `ts-css` rarely requires call-site
+changes — but the project stands on its own and isn't pitched as "the
+replacement for X."
 
 ## Highlights
 
 - **Zero runtime deps.** Only ts-css's own code. Ships ~4.5k lines of TS.
-- **Four packages worth of API in one import.** Sub-modules at
-  `@stacksjs/ts-css/parse`, `/what`, `/select`, `/optimize`.
-- **Drop-in compatible.** Namespace exports (`csstree`, `cssWhat`,
-  `cssSelect`, `csso`) keep existing call sites intact.
+- **One install for the whole CSS pipeline.** Tokenizer, parser, walker,
+  generator, selector parser/matcher, and minifier — all behind sub-module
+  imports at `@stacksjs/ts-css/parse`, `/what`, `/select`, `/optimize`.
+- **Familiar API shapes.** Visitor/walker callbacks, AST node types, and
+  the `css-select` adapter contract follow the conventions established by
+  the popular community libraries, so most existing call sites work
+  unchanged.
 - **Bun-first.** Built and tested on Bun, works on Node ≥18.
 - **Strict TypeScript.** Strict mode, isolatedDeclarations, verbatimModuleSyntax.
 
@@ -75,9 +80,10 @@ const adapter = {
 selectAll('p > span.foo:not(.disabled)', root, { adapter, xmlMode: true })
 ```
 
-The adapter shape is **identical** to `css-select`'s — pass your own and
-ts-css matches selectors against your custom tree (HTML, XML, your
-design-system AST, anything).
+The matcher is decoupled from any DOM implementation: pass an `Adapter`
+describing your tree (HTML, XML, an SVG AST, your design-system component
+graph, anything with `parent`/`children`/`name`/`attrs`-like access) and
+ts-css will match standard CSS selectors against it.
 
 ### Minify CSS
 
@@ -103,33 +109,27 @@ const sel = parse('#a.b div', { context: 'selector' })
 syntax.specificity(sel) // [1, 1, 1]
 ```
 
-## Migration: drop-in compat
+## API surface
 
-If you already use `css-tree`/`css-select`/`css-what`/`csso`, the migration
-is one block of imports:
+`ts-css` exposes a complete CSS pipeline. The named exports below cover the
+endpoints most build/lint/transform tools reach for:
 
-```diff
-- import * as csstree from 'css-tree'
-- import * as csswhat from 'css-what'
-- import { is, selectAll, selectOne } from 'css-select'
-- import * as csso from 'csso'
-+ import { csstree, cssWhat as csswhat, csso, is, selectAll, selectOne } from '@stacksjs/ts-css'
-```
+| Capability                       | Export                       |
+| -------------------------------- | ---------------------------- |
+| Parse a stylesheet to an AST (`stylesheet`/`rule`/`declaration`/`selectorList`/etc. contexts) | `parse(source, opts?)` |
+| Walk the AST with `enter`/`leave` callbacks, `visit` filtering, and a `walk.skip` sentinel | `walk(ast, fn \| visitor)` |
+| Stringify any AST node back to CSS source | `generate(node)` |
+| Deep-clone an AST subtree | `clone(node)` |
+| Doubly-linked children container with cursor-safe `forEach(data, item, list)` mid-walk mutation | `List` / `ListItem` |
+| Tokenize a selector string into segments | `cssWhat.parse(selector)` |
+| Detect combinator/traversal segments | `cssWhat.isTraversal(seg)` |
+| Match a selector against an arbitrary tree via the `Adapter` contract | `selectAll`, `selectOne`, `is`, `compile` |
+| Minify with declaration/value compression and whitespace collapse | `minify`, `minifyBlock` |
+| Compute selector specificity tuple | `syntax.specificity(node)` |
 
-Every method already used by SVGO and CSSO works without further changes:
-
-| Surface                          | Available |
-| -------------------------------- | --------- |
-| `csstree.parse(s, opts)`         | ✅ — all `context` modes |
-| `csstree.walk(ast, cb \| { visit, enter, leave })` + `walk.skip` | ✅ |
-| `csstree.generate(node)`         | ✅ |
-| `csstree.clone(node)`            | ✅ |
-| `csstree.List` / `ListItem`      | ✅ — same `forEach(data, item, list)` callback shape |
-| `cssWhat.parse(selector)`        | ✅ |
-| `cssWhat.isTraversal(seg)`       | ✅ |
-| `cssSelect.{selectAll,selectOne,is}` | ✅ |
-| `csso.{minify,minifyBlock}`      | ✅ |
-| `csso.syntax.specificity(node)`  | ✅ |
+A namespace export (`csstree`, `cssWhat`, `cssSelect`, `csso`) is also
+available so existing code that imports from those packages can typically
+switch by just changing the import path.
 
 ## CLI
 
@@ -141,20 +141,19 @@ ts-css format input.css                # round-trip through parser/generator
 
 ## What's not (yet) in scope
 
-This is a pragmatic port — full surface area where it's load-bearing,
-trimmed where the original libs spend most of their bytes on
-edge cases real consumers don't hit:
+This is a pragmatic toolkit — full surface area where it's load-bearing,
+trimmed where edge cases would force in spec data or rarely-used passes:
 
-- ❌ **No CSS-spec-aware lexer.** `css-tree`'s value validator (e.g.
-  "is `red` a valid `<color>`?") is ~3000 lines of spec data and grammar
-  matchers. We don't ship it. If you need spec validation, the AST already
-  preserves enough to add it on top.
-- ❌ **No CSSO restructuring pass.** `csso` reorders rules across selectors
-  to fold compatible declarations. It's complex and gives marginal gain
-  beyond gzip. Declaration-level minification (numbers, colors, dedup)
-  ships fully.
+- ❌ **No CSS-spec-aware value lexer.** Validating that `red` is a valid
+  `<color>`, or that `1px` is the right syntax for a given property, is
+  thousands of lines of spec grammar that most pipelines don't need. The
+  AST preserves enough information to layer that on top if you do.
+- ❌ **No cross-rule restructuring pass.** Reordering rules across the
+  whole stylesheet to fold compatible declarations is complex and gives
+  marginal gains beyond gzip. Declaration-level minification (numbers,
+  colors, dedup, longhand collapse) ships fully.
 
-Everything else round-trips byte-equivalent or better than the originals.
+Everything else round-trips byte-equivalent.
 
 ## Project layout
 
@@ -177,14 +176,15 @@ import { minify } from '@stacksjs/ts-css/optimize'
 
 ## Performance
 
-End-to-end (parse → minify → generate) on a 6 KB representative fixture:
+End-to-end (parse → minify → generate) on a 6 KB representative fixture
+(Apple M3 Pro, Bun 1.3):
 
 | Pipeline                    | Time/iter |
 | --------------------------- | --------- |
-| `ts-css.minify(source)`     | **441 µs** |
-| `csso.minify(source)`       | 847 µs    |
+| `ts-css.minify(source)`     | **~370 µs** |
+| `csso.minify(source)`       | ~870 µs    |
 
-→ **1.92× faster end-to-end** with zero runtime deps. Per-API breakdown
+→ **~2.3× faster end-to-end** with zero runtime deps. Per-API breakdown
 in [`docs/benchmarks.md`](./docs/benchmarks.md). Run them yourself with
 `bun run bench`.
 
@@ -205,10 +205,9 @@ local docs site.
 
 MIT — see [`LICENSE.md`](./LICENSE.md).
 
-The selector parsing strategy in `src/what` is structurally inspired by
-[`css-what`](https://github.com/fb55/css-what); the visitor & List shape in
-`src/parse` mirrors [`css-tree`](https://github.com/csstree/csstree); the
-minification plan in `src/optimize` follows
-[`csso`](https://github.com/css/csso). All four are MIT-licensed; this
-project is an independent reimplementation that preserves their public API
-surface.
+`ts-css` is an independent implementation. The visitor / linked-list shape
+in `src/parse`, the selector tokenizer model in `src/what`, the adapter
+pattern in `src/select`, and the minification plan in `src/optimize` all
+follow conventions established by the long-standing community libraries in
+each area, so call sites that already use those conventions tend to drop in
+without changes. All such projects are MIT-licensed.
