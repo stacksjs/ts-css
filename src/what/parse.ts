@@ -217,6 +217,7 @@ function parseSelectorImpl(subselects: Selector[][], selector: string, options: 
   return i
 }
 
+// eslint-disable-next-line pickier/no-unused-vars
 function parseAttribute(selector: string, idx: number, tokens: Selector[], options: ParseOptions, xmlMode: boolean, lowerCaseAttrs: boolean): number {
   let i = idx + 1
   const len = selector.length
@@ -364,6 +365,7 @@ function findEndOfString(selector: string, start: number, qCode: number): number
   throw new Error('Unterminated string')
 }
 
+// eslint-disable-next-line pickier/no-unused-vars
 function findClose(selector: string, openParen: number): number {
   let depth = 1
   let i = openParen + 1

@@ -26,7 +26,7 @@ const adapter: Adapter<El, El> = {
     for (const e of elems) {
       if (adapter.isTag(e)) {
         if (test(e)) out.push(e)
-        out.push(...adapter.findAll(test, e.children))
+        out.push(...adapter.findAll!(test, e.children))
       }
     }
     return out
@@ -35,7 +35,7 @@ const adapter: Adapter<El, El> = {
     for (const e of elems) {
       if (adapter.isTag(e)) {
         if (test(e)) return e
-        const r = adapter.findOne(test, e.children)
+        const r = adapter.findOne!(test, e.children)
         if (r) return r
       }
     }

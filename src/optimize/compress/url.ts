@@ -5,6 +5,7 @@
  * lastIndex bookkeeping the runtime does for `g`-style patterns.
  */
 
+// eslint-disable-next-line pickier/no-unused-vars
 export function compressUrl(value: string): string {
   for (let i = 0; i < value.length; i++) {
     const c = value.charCodeAt(i)

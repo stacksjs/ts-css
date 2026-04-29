@@ -33,6 +33,7 @@ function containsWsToken(haystack: string, needle: string): boolean {
   return false
 }
 
+// eslint-disable-next-line pickier/no-unused-vars
 function caseInsensitive(value: string, attr: AttributeSelectorNode, options: Options<unknown, any>): boolean {
   if (attr.ignoreCase === true)
     return true

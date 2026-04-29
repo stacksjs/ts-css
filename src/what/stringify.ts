@@ -21,6 +21,7 @@ function stringifySegments(tokens: Selector[]): string {
   return tokens.map((t, i) => stringifyOne(t, tokens[i - 1])).join('')
 }
 
+// eslint-disable-next-line pickier/no-unused-vars
 function stringifyOne(token: Selector, _prev?: Selector): string {
   switch (token.type) {
     case 'tag': return `${nsPrefix(token.namespace)}${escapeIdent(token.name)}`
@@ -62,6 +63,7 @@ function stringifyOne(token: Selector, _prev?: Selector): string {
   return ''
 }
 
+// eslint-disable-next-line pickier/no-unused-vars
 const ACTION_OP: Record<string, string> = {
   equals: '=',
   element: '~=',

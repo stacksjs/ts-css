@@ -61,6 +61,7 @@ export interface Options<Node, ElementNode extends Node> {
   /** Optional context node for relative selectors (`:has`, `:not`). */
   context?: Node | Node[]
   /** Optional pseudo-class/element extension hooks. */
+  // eslint-disable-next-line pickier/no-unused-vars
   pseudos?: Record<string, string | ((elem: ElementNode, value?: string) => boolean)>
   /** Set, treated as already-visited siblings root. */
   rootFunc?: (elem: ElementNode) => boolean

@@ -199,7 +199,9 @@ export class Tokenizer {
   private grow(): void {
     const oldLen = this.types.length
     const newLen = oldLen * 2
+    // eslint-disable-next-line pickier/no-unused-vars
     const t = new Uint8Array(newLen); t.set(this.types); this.types = t
+    // eslint-disable-next-line pickier/no-unused-vars
     const s = new Uint32Array(newLen); s.set(this.starts); this.starts = s
     const e = new Uint32Array(newLen); e.set(this.ends); this.ends = e
   }

@@ -7,6 +7,7 @@
  * doesn't churn the GC when the same string flows through repeatedly.
  */
 
+// eslint-disable-next-line pickier/no-unused-vars
 export function compressString(value: string): string {
   let dq = 0
   let sq = 0

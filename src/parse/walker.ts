@@ -182,7 +182,6 @@ export const walkStop: symbol = STOP
 function walkChildren(
   node: CssNode,
   reverse: boolean,
-  // eslint-disable-next-line pickier/no-unused-vars
   visitNode: (n: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => symbol | undefined,
 ): symbol | undefined {
   // Composite children
@@ -224,7 +223,6 @@ function walkChildren(
 function walkList(
   list: CssList<CssNode>,
   reverse: boolean,
-  // eslint-disable-next-line pickier/no-unused-vars
   visitNode: (n: CssNode, item: ListItem<CssNode> | null, list: CssList<CssNode> | null) => symbol | undefined,
 ): symbol | undefined {
   // The list's `forEach` callback already receives the current `ListItem`

@@ -387,6 +387,7 @@ const SELECTOR_LIST_PSEUDOS_PARSE: ReadonlySet<string> = new Set([
  * opposed to direct declarations. Used to switch parser mode inside the
  * block. Lives here (not on _collections) because it's a parser concern.
  */
+// eslint-disable-next-line pickier/no-unused-vars
 const AT_RULES_WITH_NESTED_RULES: ReadonlySet<string> = new Set([
   'media',
   'supports',
@@ -575,7 +576,7 @@ function parseDeclaration(s: ParserState): Declaration | null {
   const propStart = s.starts[s.pos]!
   const propEnd = s.ends[s.pos]!
   s.pos++
-  let property = s.source.slice(propStart, propEnd)
+  const property = s.source.slice(propStart, propEnd)
 
   skipWhitespaceOnly(s)
   if (peekType(s) !== TokenType.Colon) {
