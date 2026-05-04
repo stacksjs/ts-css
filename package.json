@@ -98,13 +98,13 @@
     "format:fix": "bunx --bun pickier . --format --write"
   },
   "dependencies": {
-    "bunfig": "^0.15.6"
+    "bunfig": "^0.15.11"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/css-tree": "^2.3.11",
     "@types/csso": "^5.0.4",
-    "better-dx": "^0.2.7",
+    "better-dx": "^0.2.12",
     "css-select": "^7.0.0",
     "css-tree": "^3.2.1",
     "css-what": "^8.0.0",
