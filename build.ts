@@ -1,6 +1,7 @@
 import { dts } from 'bun-plugin-dtsx'
 
 await Bun.build({
+  splitting: true,
   minify: true,
   entrypoints: [
     'src/index.ts',
