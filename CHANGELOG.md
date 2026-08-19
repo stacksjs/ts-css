@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.3...v0.1.4)
+
+## 🐛 Bug Fixes
+
+- **build**: build the CLI the bin field points at ([61d4584](https://github.com/stacksjs/ts-css/commit/61d4584)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.4 ([5c4ca3d](https://github.com/stacksjs/ts-css/commit/5c4ca3d)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.2...v0.1.3)
 
 ## ⚡ Performance Improvements
