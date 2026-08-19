@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.2...v0.1.3)
+
+## ⚡ Performance Improvements
+
+- **build**: cut the waste out of the published output ([222ad06](https://github.com/stacksjs/ts-css/commit/222ad06)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.3 ([1b59c44](https://github.com/stacksjs/ts-css/commit/1b59c44)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.1...v0.1.2)
 
 ## ⚡ Performance Improvements
