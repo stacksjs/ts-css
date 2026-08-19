@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.1...v0.1.2)
+
+## ⚡ Performance Improvements
+
+- **build**: minify the published bundles ([ab79be3](https://github.com/stacksjs/ts-css/commit/ab79be3)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.1.2 ([8e3ce9a](https://github.com/stacksjs/ts-css/commit/8e3ce9a)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.1.0...v0.1.1)
 
 ## 🐛 Bug Fixes
