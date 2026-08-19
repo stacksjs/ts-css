@@ -14,3 +14,14 @@ await Bun.build({
   target: 'bun',
   plugins: [dts()],
 })
+
+// The CLI the `bin` field points at. Nothing built it, so `dist/bin/cli.js`
+// has never existed and every install logged a failed bin link — the command
+// was declared and unavailable. Built separately so it lands under dist/bin/,
+// which is where the manifest already looks for it.
+await Bun.build({
+  minify: true,
+  entrypoints: ['bin/cli.ts'],
+  outdir: './dist/bin',
+  target: 'bun',
+})
