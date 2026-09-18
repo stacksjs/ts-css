@@ -112,14 +112,14 @@
     "benchmark": "bun run ../../benchmark/framework-comparison.bench.ts"
   },
   "dependencies": {
-    "@stacksjs/clapp": "^0.2.0",
-    "bunfig": "^0.15.17"
+    "@stacksjs/clapp": "^0.2.16",
+    "bunfig": "^0.15.19"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/css-tree": "^2.3.11",
-    "@types/csso": "^5.0.4",
-    "better-dx": "^0.2.15",
+    "@types/csso": "^5.0.5",
+    "better-dx": "^0.2.25",
     "css-select": "^7.0.0",
     "css-tree": "^3.2.1",
     "css-what": "^8.0.0",
