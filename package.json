@@ -53,7 +53,7 @@
     "prepare": "bun run build:toolkit"
   },
   "devDependencies": {
-    "better-dx": "^0.2.15"
+    "better-dx": "^0.2.25"
   },
   "git-hooks": {
     "pre-commit": {

@@ -1,18 +1,18 @@
 {
   "devDependencies": {
-    "@babel/core": "^8.0.1",
-    "@stylexjs/babel-plugin": "^0.19.0",
-    "@stylexjs/stylex": "^0.19.0",
-    "@tailwindcss/node": "^4.1.14",
-    "@tailwindcss/postcss": "^4.1",
-    "@tailwindcss/vite": "^4.1",
+    "@babel/core": "^8.0.6",
+    "@stylexjs/babel-plugin": "^0.19.1",
+    "@stylexjs/stylex": "^0.19.1",
+    "@tailwindcss/node": "^4.3.3",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.3",
     "mitata": "^1.0.34",
     "postcss": "^8.5.6",
     "tailwindcss": "^3",
     "tailwindcss-v4": "npm:tailwindcss@^4"
   },
   "dependencies": {
-    "@unocss/core": "^66.6.7",
-    "@unocss/preset-wind": "^66.6.7"
+    "@unocss/core": "^66.10.5",
+    "@unocss/preset-wind": "^66.10.5"
   }
 }
