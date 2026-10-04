@@ -1,5 +1,4 @@
 import type { CssConfig } from './types'
-import { loadConfig } from 'bunfig'
 import { tailwindPreflight } from './preflight'
 
 export const defaultConfig: CssConfig = {
@@ -530,6 +529,7 @@ let _config: CssConfig | null = null
 
 export async function getConfig(): Promise<CssConfig> {
   if (!_config) {
+    const { loadConfig } = await import('bunfig')
     _config = await loadConfig({
       name: 'css',
       defaultConfig,

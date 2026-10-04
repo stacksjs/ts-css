@@ -1,5 +1,4 @@
 import type { CSSConfig } from './types'
-import { loadConfig } from 'bunfig'
 
 export const defaultConfig: CSSConfig = {
   floatPrecision: 3,
@@ -10,6 +9,7 @@ let _config: CSSConfig | null = null
 
 export async function getConfig(): Promise<CSSConfig> {
   if (!_config) {
+    const { loadConfig } = await import('bunfig')
     _config = await loadConfig({
       name: 'ts-css',
       defaultConfig,

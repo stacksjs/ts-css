@@ -14,6 +14,13 @@ await Bun.build({
   ],
   outdir: './dist',
   target: 'bun',
+  // The library's dependencies stay dependencies. Inlining them put bunfig's
+  // logger, with its module-scope `await` and `import.meta.require`, inside
+  // every entry - including `./engine`, which editors bundle into a Node
+  // extension host that cannot parse either. bunfig is also loaded lazily
+  // (see engine/config.ts), so a consumer that never loads a config file can
+  // leave it out of its bundle altogether.
+  external: ['bunfig', '@stacksjs/clapp'],
   plugins: [dts()],
 })
 

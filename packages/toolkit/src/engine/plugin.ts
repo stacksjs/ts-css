@@ -1,6 +1,5 @@
 import type { BunPlugin } from 'bun'
 import type { CssConfig, CssOptions } from './types'
-import { loadConfig } from 'bunfig'
 import { defaultConfig } from './config'
 import { CSSGenerator } from './generator'
 import { extractClasses } from './parser'
@@ -36,6 +35,7 @@ export function plugin(options: CssPluginOptions = {}): BunPlugin {
     name: 'bun-plugin-ts-css',
     async setup(build) {
     // Load configuration from css.config.ts or use defaults
+      const { loadConfig } = await import('bunfig')
       const loadedConfig = await loadConfig<CssConfig>({
         name: 'css',
         defaultConfig,
