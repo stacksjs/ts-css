@@ -1,4 +1,4 @@
-import type { CssOptions } from '../src/types'
+import type { CssOptions } from '../src/engine/types'
 
 const config: CssOptions = {
   content: ['./example/**/*.html'],
