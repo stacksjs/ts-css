@@ -160,3 +160,42 @@ describe('code-string extraction', () => {
     expect(classes.has('px-4')).toBe(true)
   })
 })
+
+// Comments and regex literals used to be read as code: a backtick in a doc
+// comment opened a multi-line "template", a quote inside a regex opened a
+// "string", and every literal after that was read inside out. A page that
+// inlines a bundled library before its own script lost every class its own
+// code named.
+describe('code-string extraction past comments and regexes', () => {
+  it('keeps quote tracking straight after a backtick in a comment', () => {
+    const source = `
+      /** Returns \`null\` when there is nothing to show. */
+      function pick() { return null }
+      const ICONS = { slack: "i-hugeicons-slack", discord: "i-hugeicons-discord" }
+    `
+    const classes = extractClasses(source)
+    expect(classes.has('i-hugeicons-slack')).toBe(true)
+    expect(classes.has('i-hugeicons-discord')).toBe(true)
+  })
+
+  it('keeps quote tracking straight after a regex holding quotes', () => {
+    const source = `
+      const escape = s => s.replace(/[&<>"']/g, c => map[c])
+      const tone = 'text-rose-600 ring-1'
+    `
+    const classes = extractClasses(source)
+    expect(classes.has('text-rose-600')).toBe(true)
+    expect(classes.has('ring-1')).toBe(true)
+  })
+
+  it('ignores classes that only appear in comments', () => {
+    const classes = extractClasses(`// use 'bg-red-500' here\nconst a = 'px-4 py-2'`)
+    expect(classes.has('bg-red-500')).toBe(false)
+    expect(classes.has('px-4')).toBe(true)
+  })
+
+  it('still reads division as division', () => {
+    const classes = extractClasses(`const half = total / 2; const c = 'gap-3 mt-2'; const r = a / b`)
+    expect(classes.has('gap-3')).toBe(true)
+  })
+})

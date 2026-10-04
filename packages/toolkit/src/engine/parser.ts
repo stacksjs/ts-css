@@ -2041,13 +2041,45 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
   const tokens = new Set<string>()
   const length = content.length
   let i = 0
+  // The last significant character outside strings and comments, for telling
+  // a regex literal's `/` from division.
+  let lastSig = ''
 
   while (i < length) {
     const quote = content[i]
+
+    // Comments and regex literals are skipped whole. Read as code they are
+    // what desynchronises the quote tracking: a backtick in a doc comment
+    // ("returns `null`") opened a multi-line "template" that swallowed code up
+    // to the next backtick, a quote inside /[&<>"']/ opened a "string", and
+    // from then on every literal's quotes were read inside out. In a page
+    // that inlines a bundled library before its own script, that silently
+    // dropped every class named in the page's code.
+    if (quote === '/' && content[i + 1] === '/') {
+      const end = content.indexOf('\n', i)
+      i = end === -1 ? length : end
+      continue
+    }
+    if (quote === '/' && content[i + 1] === '*') {
+      const end = content.indexOf('*/', i + 2)
+      i = end === -1 ? length : end + 2
+      continue
+    }
+    if (quote === '/' && !/[\w$)\]]/.test(lastSig)) {
+      const end = regexLiteralEnd(content, i)
+      if (end !== -1) {
+        i = end
+        lastSig = ')'
+        continue
+      }
+    }
     if (quote !== '"' && quote !== '\'' && quote !== '`') {
+      if (!/\s/.test(quote))
+        lastSig = quote
       i++
       continue
     }
+    lastSig = ')'
 
     const markupAttribute = isMarkupAttributeString(content, i)
     const multiline = quote === '`'
@@ -2115,6 +2147,33 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
   }
 
   return tokens
+}
+
+/**
+ * Index just past the regex literal whose `/` is at `start`, or -1 when no
+ * literal closes on the same line (then it was division after all).
+ */
+function regexLiteralEnd(content: string, start: number): number {
+  let inClass = false
+  for (let j = start + 1; j < content.length; j++) {
+    const char = content[j]
+    if (char === '\n')
+      return -1
+    if (char === '\\') {
+      j++
+      continue
+    }
+    if (char === '[')
+      inClass = true
+    else if (char === ']')
+      inClass = false
+    else if (char === '/' && !inClass) {
+      let end = j + 1
+      while (end < content.length && /[a-z]/i.test(content[end]!)) end++
+      return end
+    }
+  }
+  return -1
 }
 
 function isMarkupAttributeString(content: string, quoteIndex: number): boolean {
