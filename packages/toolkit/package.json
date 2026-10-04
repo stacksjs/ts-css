@@ -1,7 +1,7 @@
 {
   "name": "@stacksjs/ts-css",
   "type": "module",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Pure-TypeScript CSS toolkit and utility-first CSS engine for Bun/Node — parser, walker, generator, selector engine, minifier, and a Tailwind-compatible utility engine. Zero runtime deps.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",

@@ -2,7 +2,7 @@
   "name": "@ts-css/core",
   "type": "module",
   "sideEffects": false,
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "A blazingly fast utility-first CSS engine with a StyleX-style typed API. Tailwind-compatible utilities, zero runtime.",
   "author": "Chris Breuer <chris@stacksjs.org>",
   "license": "MIT",

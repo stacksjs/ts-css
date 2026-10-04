@@ -1,3 +1,19 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.6...v0.3.7)
+
+## 🐛 Bug Fixes
+
+- keep bunfig out of the library bundle, and load it only for a config file ([d2868a8](https://github.com/stacksjs/ts-css/commit/d2868a8)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.3.7 ([dfe0a5b](https://github.com/stacksjs/ts-css/commit/dfe0a5b)) _(by Chris <chrisbreuer93@gmail.com>)_
+- run @stacksjs/logsmith, not the unrelated npm 'logsmith' ([9ef4890](https://github.com/stacksjs/ts-css/commit/9ef4890)) _(by Chris <chrisbreuer93@gmail.com>)_
+- release through @stacksjs/bumpx, not the unrelated npm 'bumpx' ([d7dd148](https://github.com/stacksjs/ts-css/commit/d7dd148)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.5...v0.3.6)
 
 ## 💚 Continuous Integration
