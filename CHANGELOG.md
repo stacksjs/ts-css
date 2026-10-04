@@ -1,3 +1,18 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.7...v0.3.8)
+
+## 🐛 Bug Fixes
+
+- **engine**: skip comments and regex literals when reading classes from code ([75f10a3](https://github.com/stacksjs/ts-css/commit/75f10a3)) _(by Chris <chrisbreuer93@gmail.com>)_
+- **types**: type the cssx config with the engine's CssOptions ([0ed7745](https://github.com/stacksjs/ts-css/commit/0ed7745)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.8 ([23aa202](https://github.com/stacksjs/ts-css/commit/23aa202)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.6...v0.3.7)
 
 ## 🐛 Bug Fixes

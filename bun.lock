@@ -10,7 +10,7 @@
     },
     "packages/toolkit": {
       "name": "@stacksjs/ts-css",
-      "version": "0.3.6",
+      "version": "0.3.8",
       "bin": {
         "ts-css": "./dist/bin/cli.js",
       },
@@ -43,7 +43,7 @@
     },
     "packages/vscode": {
       "name": "@ts-css/vscode",
-      "version": "0.3.6",
+      "version": "0.3.8",
     },
   },
   "overrides": {
