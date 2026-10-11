@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.8...v0.3.9)
+
+## 🐛 Bug Fixes
+
+- **engine**: keep the opacity on oklch shadow colors ([72dbc3e](https://github.com/stacksjs/ts-css/commit/72dbc3e)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🧹 Chores
+
+- release v0.3.9 ([62e9970](https://github.com/stacksjs/ts-css/commit/62e9970)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.7...v0.3.8)
 
 ## 🐛 Bug Fixes
