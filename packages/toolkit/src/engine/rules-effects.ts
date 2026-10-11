@@ -1,6 +1,6 @@
 import type { UtilityRule } from './rules'
 import { colorModifierSlashIndex } from './color-modifier'
-import { resolveColorValue } from './rules'
+import { applyOpacity, resolveColorValue } from './rules'
 
 const BACKGROUND_ORIGIN_VALUES: Record<string, string> = {
   'bg-origin-border': 'border-box',
@@ -60,21 +60,6 @@ function buildShadowColorCache(colors: Record<string, any>): Map<string, string>
     }
   }
   return cache
-}
-
-function applyShadowOpacity(color: string, opacity: number): string {
-  if (color.charCodeAt(0) === 35) { // '#'
-    let hex = color.slice(1)
-    // Expand 3-char hex (#rgb) to 6-char (#rrggbb)
-    if (hex.length === 3) {
-      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]
-    }
-    const r = Number.parseInt(hex.slice(0, 2), 16)
-    const g = Number.parseInt(hex.slice(2, 4), 16)
-    const b = Number.parseInt(hex.slice(4, 6), 16)
-    return `rgb(${r} ${g} ${b} / ${opacity})`
-  }
-  return color
 }
 
 /**
@@ -387,8 +372,10 @@ export const shadowColorRule: UtilityRule = (parsed, config) => {
     ?? (parsed.arbitrary ? colorName : undefined)
   if (!resolvedColor) return undefined
 
+  // The shared helper, not a hex-only one: the default palette is oklch, and
+  // `shadow-slate-900/5` used to come out as solid slate-900.
   const finalColor = opacity !== undefined
-    ? applyShadowOpacity(resolvedColor, opacity)
+    ? applyOpacity(resolvedColor, opacity)
     : resolvedColor
 
   return {
