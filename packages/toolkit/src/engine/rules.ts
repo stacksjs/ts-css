@@ -2,6 +2,7 @@ import type { CssConfig, ParsedClass, UtilityRuleResult } from './types'
 import { colorModifierSlashIndex } from './color-modifier'
 import { advancedRules } from './rules-advanced'
 import { effectsRules } from './rules-effects'
+import { maskRules } from './rules-mask'
 import { formsRules } from './rules-forms'
 import { gridRules } from './rules-grid'
 import { iconRule } from './rules-icons'
@@ -1252,6 +1253,11 @@ export const builtInRules: UtilityRule[] = [
   ...typographyRules, // handles text-ellipsis, text-wrap, text-transform, contentRule, etc.
   fontWeightRule,
   leadingRule,       // handles leading-{size} (leading-tight, leading-none, etc.)
+
+  // Mask utilities (v4 names: mask-add, mask-center, mask-cover, …)
+  // MUST come before effectsRules, whose maskRule owns the longhand
+  // spellings (mask-composite-*, mask-position-*, mask-size-*).
+  ...maskRules,
 
   // Effects rules that use 'bg' utility (bg-gradient-*, bg-fixed, bg-clip-*, etc.)
   ...effectsRules,
