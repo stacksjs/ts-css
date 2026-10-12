@@ -304,3 +304,27 @@ describe('drop-shadow and text-shadow colours', () => {
     })
   })
 })
+
+describe('the top of the box-shadow scale', () => {
+  // shadow-2xl and shadow-inner were in the generator's static SHADOW_MAP but
+  // absent from the theme's boxShadow scale — and the theme lookup is what
+  // actually serves shadow-* once any scale value diverges from the static
+  // map, so both generated nothing.
+  it('should generate shadow-2xl', () => {
+    expect(css('shadow-2xl')).toContain('--tc-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25)')
+  })
+
+  it('should generate shadow-inner as an inset shadow', () => {
+    expect(css('shadow-inner')).toContain('--tc-shadow:inset 0 2px 4px 0 rgb(0 0 0 / 0.05)')
+  })
+
+  it('should give both a colored variant so shadow-<color> works', () => {
+    expect(css('shadow-2xl')).toContain('--tc-shadow-colored:0 25px 50px -12px var(--tc-shadow-color)')
+  })
+
+  it('should keep the rest of the scale intact', () => {
+    expect(css('shadow-xs')).toContain('--tc-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05)')
+    expect(css('shadow-xl')).toContain('--tc-shadow:0 20px 25px -5px')
+    expect(css('shadow-none')).toContain('--tc-shadow:0 0 #0000')
+  })
+})
