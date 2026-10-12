@@ -854,7 +854,7 @@ const variantPrefixes = new Set([
   'dark',
   // First/last/odd/even
   'first', 'last', 'odd', 'even', 'only',
-  'first-of-type', 'last-of-type',
+  'first-of-type', 'last-of-type', 'only-of-type',
   // Form states
   'checked', 'indeterminate', 'default', 'required', 'valid', 'invalid',
   'in-range', 'out-of-range', 'placeholder-shown', 'autofill', 'read-only',

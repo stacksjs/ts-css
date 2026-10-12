@@ -1416,12 +1416,16 @@ const VARIANT_SELECTORS: Record<string, string> = {
   // unlike :valid / :invalid which match an untouched empty required field.
   'user-valid': ':user-valid',
   'user-invalid': ':user-invalid',
+  'in-range': ':in-range',
+  'out-of-range': ':out-of-range',
+  'placeholder-shown': ':placeholder-shown',
   // Additional state pseudo-classes
   'open': '[open]',
   'closed': ':not([open])',
   'empty': ':empty',
   'enabled': ':enabled',
   'only': ':only-child',
+  'only-of-type': ':only-of-type',
   'target': ':target',
   'indeterminate': ':indeterminate',
   'default': ':default',

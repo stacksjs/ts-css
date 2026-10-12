@@ -269,3 +269,43 @@ describe('Interaction-aware validity and inert', () => {
     expect(css).toContain(':is([inert], [inert] *)')
   })
 })
+
+describe('Variants the parser accepted but the generator dropped', () => {
+  // These four were listed in the parser's variantPrefixes — so bracket
+  // syntax and attributify treated them as valid — but had no entry in
+  // VARIANT_SELECTORS, so every one of them emitted nothing. A variant that
+  // validates in one half of the pipeline and vanishes in the other is worse
+  // than one that is simply absent.
+  const cases: [string, string][] = [
+    ['in-range:flex', ':in-range'],
+    ['out-of-range:flex', ':out-of-range'],
+    ['placeholder-shown:flex', ':placeholder-shown'],
+    ['only-of-type:flex', ':only-of-type'],
+  ]
+
+  for (const [className, pseudo] of cases) {
+    it(`should generate ${className}`, () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate(className)
+      const css = gen.toCSS(false)
+      expect(css).toContain(pseudo)
+      expect(css).toContain('display: flex;')
+    })
+  }
+
+  it('should keep placeholder-shown distinct from the placeholder pseudo-element', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('placeholder-shown:opacity-50')
+    const css = gen.toCSS(false)
+    expect(css).toContain(':placeholder-shown')
+    expect(css).not.toContain('::placeholder')
+  })
+
+  it('should resolve in-range as its own name, not as in- applied to range', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('in-range:flex')
+    const css = gen.toCSS(false)
+    expect(css).toContain(':in-range')
+    expect(css).not.toContain(':where(')
+  })
+})

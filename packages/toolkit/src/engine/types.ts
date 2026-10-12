@@ -187,6 +187,9 @@ export interface VariantConfig {
   'autofill': boolean
   'user-valid': boolean
   'user-invalid': boolean
+  'in-range': boolean
+  'out-of-range': boolean
+  'placeholder-shown': boolean
   // Pseudo-classes - Additional states
   'open': boolean
   'closed': boolean
@@ -198,6 +201,7 @@ export interface VariantConfig {
   'default': boolean
   'optional': boolean
   'inert': boolean
+  'only-of-type': boolean
   // Dynamic variants (aria-*, data-*, has:, supports:, not-*)
   'aria': boolean
   'data': boolean
