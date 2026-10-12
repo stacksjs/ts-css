@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.9...v0.3.10)
+
+## 🐛 Bug Fixes
+
+- **engine**: emit an icon's box at zero specificity ([05a8293](https://github.com/stacksjs/ts-css/commit/05a8293)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.10 ([ece0eff](https://github.com/stacksjs/ts-css/commit/ece0eff)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.8...v0.3.9)
 
 ## 🐛 Bug Fixes
