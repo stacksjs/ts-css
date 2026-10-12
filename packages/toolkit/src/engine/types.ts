@@ -213,6 +213,14 @@ export interface VariantConfig {
   'landscape': boolean
   'portrait': boolean
   'forced-colors': boolean
+  'pointer-none': boolean
+  'pointer-coarse': boolean
+  'pointer-fine': boolean
+  'any-pointer-none': boolean
+  'any-pointer-coarse': boolean
+  'any-pointer-fine': boolean
+  'inverted-colors': boolean
+  'noscript': boolean
   // Direction
   'rtl': boolean
   'ltr': boolean

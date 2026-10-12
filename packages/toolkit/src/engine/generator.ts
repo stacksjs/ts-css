@@ -1543,6 +1543,27 @@ function minifyCSSBlock(css: string): string {
   return minifyBlock(css).css
 }
 
+/**
+ * Media-feature variants whose condition is a fixed query.
+ *
+ * `pointer-*` describes the PRIMARY input device and `any-pointer-*` whether
+ * any available device matches — a laptop with a touchscreen is
+ * `pointer-fine` but also `any-pointer-coarse`, which is why both families
+ * exist and why they are not interchangeable.
+ */
+const MEDIA_FEATURE_VARIANTS: Record<string, string> = {
+  'pointer-none': '(pointer: none)',
+  'pointer-coarse': '(pointer: coarse)',
+  'pointer-fine': '(pointer: fine)',
+  'any-pointer-none': '(any-pointer: none)',
+  'any-pointer-coarse': '(any-pointer: coarse)',
+  'any-pointer-fine': '(any-pointer: fine)',
+  'inverted-colors': '(inverted-colors: inverted)',
+  // Styles that should only apply with scripting unavailable. Note this is
+  // the media feature, not the <noscript> element.
+  'noscript': '(scripting: none)',
+}
+
 // Separator between stacked at-rule wrappers in a rule-group key
 // (@media + @supports + @container). Never appears in CSS text.
 const AT_RULE_SEPARATOR = '\u0001'
@@ -2578,6 +2599,7 @@ export class CSSGenerator {
         || variant.startsWith('has-') || variant.startsWith('aria-') || variant.startsWith('data-')
         || variant.startsWith('supports-')
         || (variant.startsWith('[') && variant.endsWith(']'))
+        || MEDIA_FEATURE_VARIANTS[variant] !== undefined
         || ['print', 'motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', 'landscape', 'portrait', 'forced-colors'].includes(variant)
     this.variantHandledCache.set(variant, known)
     return known
@@ -2962,6 +2984,15 @@ export class CSSGenerator {
             continue
           }
         }
+      }
+
+      // Media-feature variants with a fixed condition (pointer-*,
+      // any-pointer-*, inverted-colors, noscript).
+      const mediaFeature = MEDIA_FEATURE_VARIANTS[variant]
+      if (mediaFeature !== undefined) {
+        if (this.variantEnabled[variant])
+          mediaConditions.push(mediaFeature)
+        continue
       }
 
       // Media preference variants

@@ -869,6 +869,10 @@ const variantPrefixes = new Set([
   'print',
   // Motion
   'motion-safe', 'motion-reduce',
+  // Input device / display media features
+  'pointer-none', 'pointer-coarse', 'pointer-fine',
+  'any-pointer-none', 'any-pointer-coarse', 'any-pointer-fine',
+  'inverted-colors', 'noscript',
   // Contrast
   'contrast-more', 'contrast-less',
   // RTL/LTR

@@ -345,3 +345,56 @@ describe('Media Query and Feature Variants', () => {
     })
   })
 })
+
+describe('Input-device and display media features', () => {
+  const cases: [string, string][] = [
+    ['pointer-none:p-1', '@media (pointer: none)'],
+    ['pointer-coarse:p-8', '@media (pointer: coarse)'],
+    ['pointer-fine:p-2', '@media (pointer: fine)'],
+    ['any-pointer-none:p-1', '@media (any-pointer: none)'],
+    ['any-pointer-coarse:p-8', '@media (any-pointer: coarse)'],
+    ['any-pointer-fine:p-2', '@media (any-pointer: fine)'],
+    ['inverted-colors:bg-white', '@media (inverted-colors: inverted)'],
+    ['noscript:block', '@media (scripting: none)'],
+  ]
+
+  for (const [className, query] of cases) {
+    it(`should wrap ${className} in ${query}`, () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate(className)
+      expect(gen.toCSS(false)).toContain(query)
+    })
+  }
+
+  it('should keep pointer-* and any-pointer-* distinct', () => {
+    // A laptop with a touchscreen is pointer-fine AND any-pointer-coarse, so
+    // conflating the two families would target the wrong devices.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('pointer-coarse:p-8')
+    gen.generate('any-pointer-coarse:p-4')
+    const css = gen.toCSS(false)
+    expect(css).toContain('(pointer: coarse)')
+    expect(css).toContain('(any-pointer: coarse)')
+  })
+
+  it('should combine with a breakpoint into one media query', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('md:pointer-coarse:p-8')
+    const css = gen.toCSS(false)
+    expect(css).toContain('@media (min-width: 768px) and (pointer: coarse)')
+  })
+
+  it('should stack with a state variant on the selector', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('pointer-coarse:hover:p-8')
+    const css = gen.toCSS(false)
+    expect(css).toContain('@media (pointer: coarse)')
+    expect(css).toContain(':hover')
+  })
+
+  it('should generate nothing for an unknown pointer value', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('pointer-bogus:p-8')
+    expect(gen.toCSS(false)).toBe('')
+  })
+})
