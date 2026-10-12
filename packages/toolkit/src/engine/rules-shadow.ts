@@ -131,7 +131,33 @@ export const insetRingRule: UtilityRule = (parsed, config: CssConfig) => {
   return color === undefined ? undefined : { '--tc-inset-ring-color': color }
 }
 
+/**
+ * `drop-shadow-<color>`. The scale itself lives in the generator's static
+ * filter map, which is keyed by raw class name, so a colour never matches
+ * there and falls through to here.
+ *
+ * Only the colour variable is set: the composed `filter` and the
+ * `--tc-drop-shadow` value belong to the scale utility, and re-declaring
+ * either would wipe out the offsets.
+ */
+export const dropShadowColorRule: UtilityRule = (parsed, config: CssConfig) => {
+  if (parsed.utility !== 'drop-shadow' || !parsed.value)
+    return undefined
+
+  // An arbitrary value with offsets is a whole shadow, not a colour — the
+  // filter map's arbitrary handling owns that.
+  if (parsed.arbitrary) {
+    if (/\s/.test(parsed.value))
+      return undefined
+    return looksLikeColor(parsed.value) ? { '--tc-drop-shadow-color': parsed.value } : undefined
+  }
+
+  const color = resolveColorValue(parsed.value, config, parsed.modifierArbitrary)
+  return color === undefined ? undefined : { '--tc-drop-shadow-color': color }
+}
+
 export const shadowRules: UtilityRule[] = [
   insetShadowRule,
   insetRingRule,
+  dropShadowColorRule,
 ]

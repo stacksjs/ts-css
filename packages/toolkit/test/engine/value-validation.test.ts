@@ -359,7 +359,9 @@ describe('outline, mask, and text-shadow value validation', () => {
     expect(css('mask-size-cover')).toContain('mask-size: cover;')
     expect(css('mask-image-none')).toContain('mask-image: none;')
     expect(css('mask-image-[url(/img/mask.png)]')).toContain('mask-image: url(/img/mask.png);')
-    expect(css('text-shadow-sm')).toContain('text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);')
+    // The scale's colour now routes through --tc-text-shadow-color so a
+    // text-shadow-<color> utility can recolour it without restating offsets.
+    expect(css('text-shadow-sm')).toContain('text-shadow: 0 1px 2px var(--tc-text-shadow-color, rgba(0, 0, 0, 0.05));')
   })
 })
 

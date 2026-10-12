@@ -206,3 +206,101 @@ describe('inset-ring utilities', () => {
     })
   })
 })
+
+describe('drop-shadow and text-shadow colours', () => {
+  describe('drop-shadow', () => {
+    it('should route the scale colour through the override variable', () => {
+      expect(css('drop-shadow-xl'))
+        .toContain('drop-shadow(0 20px 13px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.03)))')
+    })
+
+    it('should apply the variable to every layer of a multi-shadow', () => {
+      // drop-shadow-xl is two stacked drop-shadow() functions; recolouring
+      // only the first would look like a bug.
+      const out = css('drop-shadow-xl')
+      expect(out.match(/var\(--tc-drop-shadow-color,/g)?.length).toBe(2)
+    })
+
+    it('should set only the colour variable for a colour utility', () => {
+      const out = css('drop-shadow-red-500')
+      expect(out).toContain('--tc-drop-shadow-color:')
+      expect(out).not.toContain('--tc-drop-shadow:')
+      expect(out).not.toContain('filter:')
+    })
+
+    it('should support an opacity modifier', () => {
+      expect(css('drop-shadow-red-500/50')).toContain('/ 0.5)')
+    })
+
+    it('should treat a bracketed colour as a colour', () => {
+      expect(css('drop-shadow-[#f00]')).toContain('--tc-drop-shadow-color:#f00')
+    })
+
+    it('should treat a bracketed value with offsets as a whole shadow', () => {
+      const out = css('drop-shadow-[0_1px_black]')
+      expect(out).toContain('--tc-drop-shadow:drop-shadow(0 1px black)')
+      expect(out).not.toContain('--tc-drop-shadow-color')
+    })
+
+    it('should leave the none reset uncoloured', () => {
+      // A reset takes no colour.
+      expect(css('drop-shadow-none')).toContain('drop-shadow(0 0 #0000)')
+      expect(css('drop-shadow-none')).not.toContain('drop-shadow-color')
+    })
+
+    it('should keep the bare utility working', () => {
+      expect(css('drop-shadow')).toContain('--tc-drop-shadow:drop-shadow(0 1px 2px')
+    })
+
+    it('should reject a non-colour word', () => {
+      expect(css('drop-shadow-bogus')).toBe('')
+    })
+
+    it('should let a colour recolour the scale', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('drop-shadow-xl')
+      gen.generate('drop-shadow-red-500')
+      const out = gen.toCSS(false, true)
+      expect(out).toContain('var(--tc-drop-shadow-color, rgb(0 0 0 / 0.03))')
+      expect(out).toContain('--tc-drop-shadow-color:oklch(63.7% 0.237 25.331)')
+    })
+  })
+
+  describe('text-shadow', () => {
+    it('should route the scale colour through the override variable', () => {
+      expect(css('text-shadow-sm'))
+        .toContain('text-shadow:0 1px 2px var(--tc-text-shadow-color, rgba(0, 0, 0, 0.05))')
+    })
+
+    it('should set only the colour variable for a colour utility', () => {
+      const out = css('text-shadow-blue-500')
+      expect(out).toContain('--tc-text-shadow-color:')
+      expect(out).not.toContain('text-shadow:')
+    })
+
+    it('should treat a bracketed colour as a colour', () => {
+      expect(css('text-shadow-[#f00]')).toContain('--tc-text-shadow-color:#f00')
+    })
+
+    it('should treat a bracketed value with offsets as a whole shadow', () => {
+      expect(css('text-shadow-[0_1px_black]')).toContain('text-shadow:0 1px black')
+    })
+
+    it('should leave the none reset uncoloured', () => {
+      expect(css('text-shadow-none')).toBe('.text-shadow-none{text-shadow:none}')
+    })
+
+    it('should reject a non-colour word', () => {
+      expect(css('text-shadow-bogus')).toBe('')
+    })
+
+    it('should let a colour recolour the scale', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('text-shadow-lg')
+      gen.generate('text-shadow-blue-500')
+      const out = gen.toCSS(false, true)
+      expect(out).toContain('var(--tc-text-shadow-color, rgba(0, 0, 0, 0.05))')
+      expect(out).toContain('--tc-text-shadow-color:oklch(62.3% 0.214 259.815)')
+    })
+  })
+})

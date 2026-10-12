@@ -1179,6 +1179,15 @@ const CW_BACKDROP_FUNCTIONS = ['blur', 'brightness', 'contrast', 'grayscale', 'h
 const CW_FILTER_COMPOSED = CW_FILTER_FUNCTIONS.map(fn => `var(--tc-${fn}, )`).join(' ')
 const CW_BACKDROP_COMPOSED = CW_BACKDROP_FUNCTIONS.map(fn => `var(--tc-backdrop-${fn}, )`).join(' ')
 
+/**
+ * Route a drop-shadow's colour through the override variable so that a
+ * `drop-shadow-<color>` utility can replace it without restating the
+ * offsets. The scale's own colour becomes the fallback.
+ */
+function dropShadowColor(fallback: string): string {
+  return `var(--tc-drop-shadow-color, ${fallback})`
+}
+
 function cwFilter(fn: string, value: string): Record<string, string> {
   return { [`--tc-${fn}`]: value, filter: CW_FILTER_COMPOSED }
 }
@@ -1237,12 +1246,12 @@ const BACKDROP_FILTER_TOGGLE_MAP: Record<string, Record<string, string>> = {
 
 // Drop shadow - direct raw class to CSS
 const DROP_SHADOW_MAP: Record<string, Record<string, string>> = {
-  'drop-shadow-sm': cwFilter('drop-shadow', 'drop-shadow(0 1px 1px rgb(0 0 0 / 0.05))'),
-  'drop-shadow': cwFilter('drop-shadow', 'drop-shadow(0 1px 2px rgb(0 0 0 / 0.1)) drop-shadow(0 1px 1px rgb(0 0 0 / 0.06))'),
-  'drop-shadow-md': cwFilter('drop-shadow', 'drop-shadow(0 4px 3px rgb(0 0 0 / 0.07)) drop-shadow(0 2px 2px rgb(0 0 0 / 0.06))'),
-  'drop-shadow-lg': cwFilter('drop-shadow', 'drop-shadow(0 10px 8px rgb(0 0 0 / 0.04)) drop-shadow(0 4px 3px rgb(0 0 0 / 0.1))'),
-  'drop-shadow-xl': cwFilter('drop-shadow', 'drop-shadow(0 20px 13px rgb(0 0 0 / 0.03)) drop-shadow(0 8px 5px rgb(0 0 0 / 0.08))'),
-  'drop-shadow-2xl': cwFilter('drop-shadow', 'drop-shadow(0 25px 25px rgb(0 0 0 / 0.15))'),
+  'drop-shadow-sm': cwFilter('drop-shadow', `drop-shadow(0 1px 1px ${dropShadowColor('rgb(0 0 0 / 0.05)')})`),
+  'drop-shadow': cwFilter('drop-shadow', `drop-shadow(0 1px 2px ${dropShadowColor('rgb(0 0 0 / 0.1)')}) drop-shadow(0 1px 1px ${dropShadowColor('rgb(0 0 0 / 0.06)')})`),
+  'drop-shadow-md': cwFilter('drop-shadow', `drop-shadow(0 4px 3px ${dropShadowColor('rgb(0 0 0 / 0.07)')}) drop-shadow(0 2px 2px ${dropShadowColor('rgb(0 0 0 / 0.06)')})`),
+  'drop-shadow-lg': cwFilter('drop-shadow', `drop-shadow(0 10px 8px ${dropShadowColor('rgb(0 0 0 / 0.04)')}) drop-shadow(0 4px 3px ${dropShadowColor('rgb(0 0 0 / 0.1)')})`),
+  'drop-shadow-xl': cwFilter('drop-shadow', `drop-shadow(0 20px 13px ${dropShadowColor('rgb(0 0 0 / 0.03)')}) drop-shadow(0 8px 5px ${dropShadowColor('rgb(0 0 0 / 0.08)')})`),
+  'drop-shadow-2xl': cwFilter('drop-shadow', `drop-shadow(0 25px 25px ${dropShadowColor('rgb(0 0 0 / 0.15)')})`),
   'drop-shadow-none': cwFilter('drop-shadow', 'drop-shadow(0 0 #0000)'),
 }
 

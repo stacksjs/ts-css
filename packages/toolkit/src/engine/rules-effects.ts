@@ -385,22 +385,45 @@ export const shadowColorRule: UtilityRule = (parsed, config) => {
   } as Record<string, string>
 }
 
-export const textShadowRule: UtilityRule = (parsed) => {
-  if (parsed.utility === 'text-shadow') {
-    const shadows: Record<string, string> = {
-      sm: '0 1px 2px rgba(0, 0, 0, 0.05)',
-      DEFAULT: '0 1px 3px rgba(0, 0, 0, 0.1)',
-      md: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      lg: '0 10px 15px rgba(0, 0, 0, 0.1)',
-      xl: '0 20px 25px rgba(0, 0, 0, 0.1)',
-      none: 'none',
-    }
-    if (!parsed.value)
-      return { 'text-shadow': shadows.DEFAULT }
-    if (shadows[parsed.value])
-      return { 'text-shadow': shadows[parsed.value] }
-    return parsed.arbitrary ? { 'text-shadow': parsed.value } : undefined
+/**
+ * The scale's colour is routed through `--tc-text-shadow-color` so that a
+ * `text-shadow-<color>` utility can recolour a shadow without restating its
+ * offsets. `text-shadow-none` is a reset and takes no colour.
+ */
+function textShadowWithColor(offsets: string): string {
+  return `${offsets} var(--tc-text-shadow-color, rgba(0, 0, 0, 0.05))`
+}
+
+export const textShadowRule: UtilityRule = (parsed, config) => {
+  if (parsed.utility !== 'text-shadow')
+    return undefined
+
+  const shadows: Record<string, string> = {
+    sm: textShadowWithColor('0 1px 2px'),
+    DEFAULT: textShadowWithColor('0 1px 3px'),
+    md: textShadowWithColor('0 4px 6px'),
+    lg: textShadowWithColor('0 10px 15px'),
+    xl: textShadowWithColor('0 20px 25px'),
+    none: 'none',
   }
+
+  if (!parsed.value)
+    return { 'text-shadow': shadows.DEFAULT }
+  if (shadows[parsed.value])
+    return { 'text-shadow': shadows[parsed.value] }
+
+  // An arbitrary value is either a whole shadow (`text-shadow-[0_1px_black]`)
+  // or just a colour (`text-shadow-[#f00]`). A shadow definition always has
+  // offsets, so whitespace tells the two apart — the same test
+  // boxShadowThemeRule uses for `shadow-[…]`.
+  if (parsed.arbitrary && parsed.value) {
+    if (/\s/.test(parsed.value))
+      return { 'text-shadow': parsed.value }
+    return { '--tc-text-shadow-color': parsed.value }
+  }
+
+  const color = resolveColorValue(parsed.value, config, parsed.modifierArbitrary)
+  return color === undefined ? undefined : { '--tc-text-shadow-color': color }
 }
 
 export const opacityRule: UtilityRule = (parsed) => {
