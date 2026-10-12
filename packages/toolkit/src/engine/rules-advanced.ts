@@ -105,7 +105,9 @@ export const ringRule: UtilityRule = (parsed, config) => {
       2: '2px',
       4: '4px',
       8: '8px',
-      DEFAULT: '3px',
+      // v4's bare-`ring` width. Kept in step with RING_MAP in the
+      // generator, which serves the same class on the fast path.
+      DEFAULT: '1px',
     }
     // Ring widths: scale keys, bare numbers (px implied), or arbitrary.
     // Unknown words previously produced calc(foo + ...) garbage (they are

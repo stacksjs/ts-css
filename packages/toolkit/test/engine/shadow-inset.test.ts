@@ -328,3 +328,44 @@ describe('the top of the box-shadow scale', () => {
     expect(css('shadow-none')).toContain('--tc-shadow:0 0 #0000')
   })
 })
+
+describe('ring default width', () => {
+  // v4 narrowed the bare `ring` from 3px to 1px. This engine carried the v3
+  // width until it was brought into line.
+  it('should make the bare ring 1px', () => {
+    expect(css('ring')).toContain('calc(1px + var(--tc-ring-offset-width, 0px))')
+    expect(css('ring')).not.toContain('calc(3px')
+  })
+
+  it('should make the bare ring identical to ring-1', () => {
+    const bare = css('ring').replace('.ring{', '')
+    const one = css('ring-1').replace('.ring-1{', '')
+    expect(bare).toBe(one)
+  })
+
+  it('should agree with inset-ring, which is also 1px', () => {
+    expect(css('inset-ring')).toContain('inset 0 0 0 1px')
+  })
+
+  it('should keep ring-3 available for the old width', () => {
+    expect(css('ring-3')).toContain('calc(3px + var(--tc-ring-offset-width, 0px))')
+  })
+
+  it('should leave the rest of the width scale alone', () => {
+    expect(css('ring-0')).toContain('calc(0px +')
+    expect(css('ring-2')).toContain('calc(2px +')
+    expect(css('ring-4')).toContain('calc(4px +')
+    expect(css('ring-8')).toContain('calc(8px +')
+    expect(css('ring-[5px]')).toContain('calc(5px +')
+  })
+
+  it('should keep the two code paths in step', () => {
+    // `ring` is served by the generator's static RING_MAP and `ring-3` by
+    // ringRule; both carry their own copy of the default width, so they can
+    // drift. Nothing but a test catches that.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generateBatch(['ring', 'ring-1'])
+    const out = gen.toCSS(false, true)
+    expect(out.match(/calc\(1px \+/g)?.length).toBe(2)
+  })
+})

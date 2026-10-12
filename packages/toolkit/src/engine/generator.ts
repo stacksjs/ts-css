@@ -316,7 +316,9 @@ function ringWidth(width: string): Record<string, string> {
   }
 }
 const RING_MAP: Record<string, Record<string, string>> = {
-  'ring': ringWidth('3px'),
+  // v4 narrowed the bare `ring` from 3px to 1px. `ring-3` still exists
+  // for anyone who wants the old width back.
+  'ring': ringWidth('1px'),
   'ring-0': ringWidth('0px'),
   'ring-1': ringWidth('1px'),
   'ring-2': ringWidth('2px'),

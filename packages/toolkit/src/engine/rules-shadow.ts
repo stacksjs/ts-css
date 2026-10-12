@@ -91,10 +91,9 @@ export const insetShadowRule: UtilityRule = (parsed, config: CssConfig) => {
 /**
  * An inset ring is a uniform inner outline drawn as a spread-only shadow.
  *
- * The default width is 1px, which is Tailwind v4's. Note this engine's own
- * `ring` is still 3px — the Tailwind v3 default — so the two differ. That is
- * deliberate for now: `inset-ring` is new and has no existing users to break,
- * while changing `ring` would silently rescale every existing ring.
+ * The default width is 1px, matching both Tailwind v4 and this engine's own
+ * `ring`. The two were briefly out of step — `ring` carried the v3 3px
+ * default until it was narrowed to match.
  */
 function insetRingLayer(width: string): Record<string, string> {
   return {
