@@ -1,4 +1,5 @@
 import type { Preflight } from './types'
+import { BOX_SHADOW_LAYERS } from './shadow-layers'
 
 /**
  * Tailwind Forms preflight styles
@@ -58,7 +59,7 @@ select:focus {
   --tc-ring-color: #2563eb;
   --tc-ring-offset-shadow: var(--tc-ring-inset) 0 0 0 var(--tc-ring-offset-width) var(--tc-ring-offset-color);
   --tc-ring-shadow: var(--tc-ring-inset) 0 0 0 calc(1px + var(--tc-ring-offset-width)) var(--tc-ring-color);
-  box-shadow: var(--tc-ring-offset-shadow), var(--tc-ring-shadow), var(--tc-shadow);
+  box-shadow: ${BOX_SHADOW_LAYERS};
   border-color: #2563eb;
 }
 
@@ -150,7 +151,7 @@ select[size]:where([size]:not([size="1"])) {
   --tc-ring-color: #2563eb;
   --tc-ring-offset-shadow: var(--tc-ring-inset) 0 0 0 var(--tc-ring-offset-width) var(--tc-ring-offset-color);
   --tc-ring-shadow: var(--tc-ring-inset) 0 0 0 calc(2px + var(--tc-ring-offset-width)) var(--tc-ring-color);
-  box-shadow: var(--tc-ring-offset-shadow), var(--tc-ring-shadow), var(--tc-shadow);
+  box-shadow: ${BOX_SHADOW_LAYERS};
 }
 
 [type='checkbox']:checked,

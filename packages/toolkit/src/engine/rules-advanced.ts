@@ -1,6 +1,7 @@
 import type { UtilityRule } from './rules'
 import { colorModifierSlashIndex } from './color-modifier'
 import { resolveColorValue, resolveSizeToken } from './rules'
+import { BOX_SHADOW_LAYERS } from './shadow-layers'
 
 const MIN_MAX_SIZING_MINMAXMAP: Record<string, string> = {
   '0': '0',
@@ -114,7 +115,7 @@ export const ringRule: UtilityRule = (parsed, config) => {
     return {
       '--tc-ring-offset-shadow': 'var(--tc-ring-inset,) 0 0 0 var(--tc-ring-offset-width, 0px) var(--tc-ring-offset-color, #fff)',
       '--tc-ring-shadow': `var(--tc-ring-inset,) 0 0 0 calc(${width} + var(--tc-ring-offset-width, 0px)) var(--tc-ring-color, rgba(59, 130, 246, 0.5))`,
-      'box-shadow': 'var(--tc-ring-offset-shadow), var(--tc-ring-shadow), var(--tc-shadow, 0 0 #0000)',
+      'box-shadow': BOX_SHADOW_LAYERS,
     } as Record<string, string>
   }
 

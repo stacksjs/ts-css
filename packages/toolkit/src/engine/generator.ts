@@ -6,6 +6,7 @@ import { defaultConfig } from './config'
 import { builtInRules } from './rules'
 import { TRANSFORM_2D, TRANSFORM_3D } from './rules-transforms'
 import { fractionToPercent } from './format'
+import { BOX_SHADOW_LAYERS } from './shadow-layers'
 
 /**
  * Deep merge objects
@@ -298,7 +299,7 @@ function ringWidth(width: string): Record<string, string> {
   return {
     '--tc-ring-offset-shadow': 'var(--tc-ring-inset,) 0 0 0 var(--tc-ring-offset-width, 0px) var(--tc-ring-offset-color, #fff)',
     '--tc-ring-shadow': `var(--tc-ring-inset,) 0 0 0 calc(${width} + var(--tc-ring-offset-width, 0px)) var(--tc-ring-color, rgba(59, 130, 246, 0.5))`,
-    'box-shadow': 'var(--tc-ring-offset-shadow), var(--tc-ring-shadow), var(--tc-shadow, 0 0 #0000)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   }
 }
 const RING_MAP: Record<string, Record<string, string>> = {
@@ -318,51 +319,51 @@ const SHADOW_MAP: Record<string, Record<string, string>> = {
   'shadow-2xs': {
     '--tc-shadow': '0 1px rgb(0 0 0 / 0.05)',
     '--tc-shadow-colored': '0 1px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-xs': {
     '--tc-shadow': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
     '--tc-shadow-colored': '0 1px 2px 0 var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-sm': {
     '--tc-shadow': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
     '--tc-shadow-colored': '0 1px 3px 0 var(--tc-shadow-color), 0 1px 2px -1px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow': {
     '--tc-shadow': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
     '--tc-shadow-colored': '0 1px 3px 0 var(--tc-shadow-color), 0 1px 2px -1px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-md': {
     '--tc-shadow': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
     '--tc-shadow-colored': '0 4px 6px -1px var(--tc-shadow-color), 0 2px 4px -2px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-lg': {
     '--tc-shadow': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
     '--tc-shadow-colored': '0 10px 15px -3px var(--tc-shadow-color), 0 4px 6px -4px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-xl': {
     '--tc-shadow': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
     '--tc-shadow-colored': '0 20px 25px -5px var(--tc-shadow-color), 0 8px 10px -6px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-2xl': {
     '--tc-shadow': '0 25px 50px -12px rgb(0 0 0 / 0.25)',
     '--tc-shadow-colored': '0 25px 50px -12px var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-inner': {
     '--tc-shadow': 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)',
     '--tc-shadow-colored': 'inset 0 2px 4px 0 var(--tc-shadow-color)',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
   'shadow-none': {
     '--tc-shadow': '0 0 #0000',
-    'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+    'box-shadow': BOX_SHADOW_LAYERS,
   },
 }
 

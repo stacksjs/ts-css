@@ -457,7 +457,9 @@ describe('ring composition', () => {
     const out = gen.toCSS(false)
     // ring sets the ring var and composes with the shadow slot
     expect(out).toContain('--tc-ring-shadow: var(--tc-ring-inset,) 0 0 0 calc(2px + var(--tc-ring-offset-width, 0px))')
-    expect(out).toContain('box-shadow: var(--tc-ring-offset-shadow), var(--tc-ring-shadow), var(--tc-shadow, 0 0 #0000);')
+    // The five-layer stack, shared by every shadow-ish utility so they
+    // compose: inset shadow, inset ring, ring offset, ring, shadow.
+    expect(out).toContain('box-shadow: var(--tc-inset-shadow, 0 0 #0000), var(--tc-inset-ring-shadow, 0 0 #0000), var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow, 0 0 #0000);')
     // ring-inset and ring-offset feed the same variables
     expect(out).toContain('--tc-ring-inset: inset;')
     expect(out).toContain('--tc-ring-offset-width: 2px;')

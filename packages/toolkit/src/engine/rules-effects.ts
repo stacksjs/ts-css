@@ -1,6 +1,7 @@
 import type { UtilityRule } from './rules'
 import { colorModifierSlashIndex } from './color-modifier'
 import { applyOpacity, resolveColorValue } from './rules'
+import { BOX_SHADOW_LAYERS, SHADOW_NONE } from './shadow-layers'
 
 const BACKGROUND_ORIGIN_VALUES: Record<string, string> = {
   'bg-origin-border': 'border-box',
@@ -296,8 +297,8 @@ export const boxShadowThemeRule: UtilityRule = (parsed, config) => {
     // shadow-none is a simple reset — no CSS variables needed
     if (shadow === 'none') {
       return {
-        '--tc-shadow': '0 0 #0000',
-        'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+        '--tc-shadow': SHADOW_NONE,
+        'box-shadow': BOX_SHADOW_LAYERS,
       } as Record<string, string>
     }
 
@@ -306,7 +307,7 @@ export const boxShadowThemeRule: UtilityRule = (parsed, config) => {
     return {
       '--tc-shadow': shadow,
       '--tc-shadow-colored': colored,
-      'box-shadow': 'var(--tc-ring-offset-shadow, 0 0 #0000), var(--tc-ring-shadow, 0 0 #0000), var(--tc-shadow)',
+      'box-shadow': BOX_SHADOW_LAYERS,
     } as Record<string, string>
   }
 }
