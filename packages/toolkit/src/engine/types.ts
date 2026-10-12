@@ -180,6 +180,8 @@ export interface VariantConfig {
   'invalid': boolean
   'read-only': boolean
   'autofill': boolean
+  'user-valid': boolean
+  'user-invalid': boolean
   // Pseudo-classes - Additional states
   'open': boolean
   'closed': boolean
@@ -190,6 +192,7 @@ export interface VariantConfig {
   'indeterminate': boolean
   'default': boolean
   'optional': boolean
+  'inert': boolean
   // Dynamic variants (aria-*, data-*, has:, supports:, not-*)
   'aria': boolean
   'data': boolean

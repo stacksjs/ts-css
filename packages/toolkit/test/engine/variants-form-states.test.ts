@@ -223,3 +223,49 @@ describe('Pseudo-Class and Pseudo-Element Variants', () => {
     })
   })
 })
+
+describe('Interaction-aware validity and inert', () => {
+  // :user-valid / :user-invalid differ from :valid / :invalid in that they
+  // only match after the user has actually interacted with the field, which
+  // is what you want for showing validation errors.
+  it('should generate user-valid', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('user-valid:border-green-500')
+    const css = gen.toCSS(false)
+    expect(css).toContain(':user-valid')
+    expect(css).toContain('border-color')
+  })
+
+  it('should generate user-invalid', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('user-invalid:border-red-500')
+    const css = gen.toCSS(false)
+    expect(css).toContain(':user-invalid')
+  })
+
+  it('should not confuse user-valid with valid', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('user-valid:underline')
+    const css = gen.toCSS(false)
+    // `.user-valid\:underline:user-valid` — the only colon-prefixed
+    // pseudo-class in the selector must be :user-valid itself.
+    expect(css).toContain(':user-valid')
+    expect(css).not.toContain(':valid')
+  })
+
+  it('should match an inert element and its whole subtree', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('inert:opacity-50')
+    const css = gen.toCSS(false)
+    expect(css).toContain(':is([inert], [inert] *)')
+    expect(css).toContain('opacity')
+  })
+
+  it('should stack inert with a breakpoint', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('md:inert:opacity-50')
+    const css = gen.toCSS(false)
+    expect(css).toContain('@media (min-width: 768px)')
+    expect(css).toContain(':is([inert], [inert] *)')
+  })
+})

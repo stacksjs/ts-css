@@ -856,6 +856,7 @@ const variantPrefixes = new Set([
   // Form states
   'checked', 'indeterminate', 'default', 'required', 'valid', 'invalid',
   'in-range', 'out-of-range', 'placeholder-shown', 'autofill', 'read-only',
+  'user-valid', 'user-invalid', 'inert',
   // Content
   'empty', 'before', 'after',
   // Selection

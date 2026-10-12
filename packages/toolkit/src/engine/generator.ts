@@ -1412,6 +1412,10 @@ const VARIANT_SELECTORS: Record<string, string> = {
   'invalid': ':invalid',
   'read-only': ':read-only',
   'autofill': ':autofill',
+  // :user-valid / :user-invalid only match once the user has interacted,
+  // unlike :valid / :invalid which match an untouched empty required field.
+  'user-valid': ':user-valid',
+  'user-invalid': ':user-invalid',
   // Additional state pseudo-classes
   'open': '[open]',
   'closed': ':not([open])',
@@ -1422,6 +1426,9 @@ const VARIANT_SELECTORS: Record<string, string> = {
   'indeterminate': ':indeterminate',
   'default': ':default',
   'optional': ':optional',
+  // [inert] marks a subtree non-interactive, so the variant has to match
+  // the element carrying the attribute AND everything beneath it.
+  'inert': ':is([inert], [inert] *)',
 }
 
 // Not-* variants (negated pseudo-classes)
