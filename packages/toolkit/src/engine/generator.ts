@@ -2600,6 +2600,7 @@ export class CSSGenerator {
         || variant.startsWith('supports-')
         || (variant.startsWith('[') && variant.endsWith(']'))
         || MEDIA_FEATURE_VARIANTS[variant] !== undefined
+        || variant === 'starting'
         || ['print', 'motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', 'landscape', 'portrait', 'forced-colors'].includes(variant)
     this.variantHandledCache.set(variant, known)
     return known
@@ -2933,6 +2934,8 @@ export class CSSGenerator {
     const mediaConditions: string[] = []
     const supportsQueries: string[] = []
     const containerQueries: string[] = []
+    // @starting-style takes no condition, so it is a flag rather than a list.
+    let startingStyle = false
 
     for (let i = 0; i < variantsLen; i++) {
       const variant = variants[i]
@@ -2984,6 +2987,15 @@ export class CSSGenerator {
             continue
           }
         }
+      }
+
+      // `starting:` wraps the rule in @starting-style, which declares the
+      // values a property animates FROM the first time the element is
+      // rendered. It carries no condition of its own.
+      if (variant === 'starting') {
+        if (this.variantEnabled.starting)
+          startingStyle = true
+        continue
       }
 
       // Media-feature variants with a fixed condition (pointer-*,
@@ -3058,6 +3070,10 @@ export class CSSGenerator {
       wrappers.push(`@media ${mediaConditions.join(' and ')}`)
     }
     wrappers.push(...supportsQueries, ...containerQueries)
+    // Innermost, so `md:starting:` nests as @media { @starting-style { … } }
+    // and not the other way around.
+    if (startingStyle)
+      wrappers.push('@starting-style')
 
     if (wrappers.length > 0) {
       // Multiple at-rules nest in toCSS; the separator groups rules that

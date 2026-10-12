@@ -398,3 +398,37 @@ describe('Input-device and display media features', () => {
     expect(gen.toCSS(false)).toBe('')
   })
 })
+
+describe('starting variant (@starting-style)', () => {
+  it('should wrap the rule in @starting-style', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('starting:opacity-0')
+    const css = gen.toCSS(false)
+    expect(css).toContain('@starting-style')
+    expect(css).toContain('opacity: 0;')
+  })
+
+  it('should nest inside a breakpoint, not outside it', () => {
+    // Tailwind emits @media { @starting-style { … } }. The reverse order is
+    // invalid nesting, so the order here is behaviour, not cosmetics.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('md:starting:opacity-0')
+    const css = gen.toCSS(false)
+    expect(css.indexOf('@media (min-width: 768px)')).toBeLessThan(css.indexOf('@starting-style'))
+  })
+
+  it('should nest inside @supports', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('starting:supports-[display:grid]:flex')
+    const css = gen.toCSS(false)
+    expect(css.indexOf('@supports')).toBeLessThan(css.indexOf('@starting-style'))
+  })
+
+  it('should keep a state variant on the selector', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('starting:hover:opacity-0')
+    const css = gen.toCSS(false)
+    expect(css).toContain('@starting-style')
+    expect(css).toContain(':hover')
+  })
+})

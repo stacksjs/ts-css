@@ -532,6 +532,7 @@ export const defaultConfig: CssConfig = {
     'any-pointer-fine': true,
     'inverted-colors': true,
     'noscript': true,
+    'starting': true,
     'rtl': true,
     'ltr': true,
     'motion-safe': true,

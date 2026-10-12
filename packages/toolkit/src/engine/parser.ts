@@ -873,6 +873,8 @@ const variantPrefixes = new Set([
   'pointer-none', 'pointer-coarse', 'pointer-fine',
   'any-pointer-none', 'any-pointer-coarse', 'any-pointer-fine',
   'inverted-colors', 'noscript',
+  // Entry animations
+  'starting',
   // Contrast
   'contrast-more', 'contrast-less',
   // RTL/LTR

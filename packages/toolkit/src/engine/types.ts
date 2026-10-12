@@ -221,6 +221,8 @@ export interface VariantConfig {
   'any-pointer-fine': boolean
   'inverted-colors': boolean
   'noscript': boolean
+  // Entry animations (@starting-style)
+  'starting': boolean
   // Direction
   'rtl': boolean
   'ltr': boolean
