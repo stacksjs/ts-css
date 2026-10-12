@@ -24,6 +24,16 @@ const MIN_MAX_SIZING_MINMAXMAP: Record<string, string> = {
   'screen': '100vw',
 }
 
+/**
+ * max-width takes one extra token the other three do not: `prose`, the
+ * measure of a comfortable line of text. Tailwind has no `min-w-prose`
+ * or `max-h-prose`, so it must not go in the shared map above.
+ */
+const MAX_WIDTH_ONLY_MAP: Record<string, string> = {
+  ...MIN_MAX_SIZING_MINMAXMAP,
+  prose: '65ch',
+}
+
 
 // Advanced utilities
 
@@ -55,7 +65,9 @@ export const minMaxSizingRule: UtilityRule = (parsed, config) => {
     return value !== undefined ? { 'min-width': value } as Record<string, string> : undefined
   }
   if (parsed.utility === 'max-w' && parsed.value) {
-    const value = resolveSizeToken(parsed, config, MIN_MAX_SIZING_MINMAXMAP)
+    // `prose` is a max-width-only token — Tailwind has no min-w-prose or
+    // max-h-prose — so it cannot live in the shared sizing map.
+    const value = resolveSizeToken(parsed, config, MAX_WIDTH_ONLY_MAP)
     return value !== undefined ? { 'max-width': value } as Record<string, string> : undefined
   }
   if (parsed.utility === 'min-h' && parsed.value) {

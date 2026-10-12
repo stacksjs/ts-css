@@ -39,9 +39,14 @@ const TRANSITION_TIMING_TIMINGS: Record<string, string> = {
   'ease-in': 'cubic-bezier(0.4, 0, 1, 1)',
   'ease-out': 'cubic-bezier(0, 0, 0.2, 1)',
   'ease-in-out': 'cubic-bezier(0.4, 0, 0.2, 1)',
+  // Opt back out of an inherited easing.
+  'ease-initial': 'initial',
 }
 
 const TRANSITION_BEHAVIOR_VALUES: Record<string, string> = {
+  // Tailwind's spellings, plus the longhand ones this engine already had.
+  'transition-normal': 'normal',
+  'transition-discrete': 'allow-discrete',
   'transition-behavior-normal': 'normal',
   'transition-behavior-allow-discrete': 'allow-discrete',
 }

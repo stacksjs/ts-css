@@ -1216,7 +1216,12 @@ function cwBackdrop(fn: string, value: string): Record<string, string> {
 // Blur - direct raw class to CSS
 const BLUR_MAP: Record<string, Record<string, string>> = {
   'blur-none': cwFilter('blur', 'blur(0)'),
-  'blur-sm': cwFilter('blur', 'blur(4px)'),
+  // v4 renamed the bottom of the blur scale: what v3 called `blur-sm`
+  // (4px) is now `blur-xs`, and `blur-sm` moved up to 8px. This engine
+  // had the v3 spelling, so `blur-xs` was missing and `blur-sm` was one
+  // step too small.
+  'blur-xs': cwFilter('blur', 'blur(4px)'),
+  'blur-sm': cwFilter('blur', 'blur(8px)'),
   'blur': cwFilter('blur', 'blur(8px)'),
   'blur-md': cwFilter('blur', 'blur(12px)'),
   'blur-lg': cwFilter('blur', 'blur(16px)'),
@@ -1228,7 +1233,10 @@ const BLUR_MAP: Record<string, Record<string, string>> = {
 // Backdrop blur - direct raw class to CSS (with -webkit- prefix for Safari)
 const BACKDROP_BLUR_MAP: Record<string, Record<string, string>> = {
   'backdrop-blur-none': cwBackdrop('blur', 'blur(0)'),
-  'backdrop-blur-sm': cwBackdrop('blur', 'blur(4px)'),
+  // Same v4 rename as the plain blur scale above; the two share one
+  // theme scale in Tailwind, so they must not drift apart.
+  'backdrop-blur-xs': cwBackdrop('blur', 'blur(4px)'),
+  'backdrop-blur-sm': cwBackdrop('blur', 'blur(8px)'),
   'backdrop-blur': cwBackdrop('blur', 'blur(8px)'),
   'backdrop-blur-md': cwBackdrop('blur', 'blur(12px)'),
   'backdrop-blur-lg': cwBackdrop('blur', 'blur(16px)'),

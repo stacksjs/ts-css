@@ -65,7 +65,7 @@ describe('Backdrop Filter Vendor Prefix', () => {
     // The prefixed property still ships; the value now composes every
     // backdrop function through custom properties so two backdrop utilities
     // on one element no longer overwrite each other.
-    expect(css).toContain('--tc-backdrop-blur: blur(4px)')
+    expect(css).toContain('--tc-backdrop-blur: blur(8px)')
     expect(css).toContain('-webkit-backdrop-filter: var(--tc-backdrop-blur, )')
     expect(css).toContain('backdrop-filter: var(--tc-backdrop-blur, )')
   })

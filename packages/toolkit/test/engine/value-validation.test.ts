@@ -243,7 +243,8 @@ describe('visual utilities value validation', () => {
   it('keeps named scales, numbers, and arbitrary values', () => {
     // Each filter function is named so several can compose on one element;
     // the shared `filter` declaration lists them all.
-    expect(css('blur-sm')).toContain('--tc-blur: blur(4px);')
+    expect(css('blur-xs')).toContain('--tc-blur: blur(4px);')
+    expect(css('blur-sm')).toContain('--tc-blur: blur(8px);')
     expect(css('blur-12')).toContain('--tc-blur: blur(12px);')
     expect(css('blur-[5em]')).toContain('--tc-blur: blur(5em);')
     expect(css('brightness-150')).toContain('--tc-brightness: brightness(1.5);')
