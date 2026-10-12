@@ -1443,6 +1443,43 @@ const NOT_VARIANT_SELECTORS: Record<string, string> = {
   'not-last-of-type': ':not(:last-of-type)',
 }
 
+/**
+ * nth-* variants resolve to the four An+B pseudo-classes.
+ *
+ * Prefixes are tried longest-first: `nth-last-of-type-2` has to reach
+ * `:nth-last-of-type(2)` rather than being eaten by the `nth-last-` prefix
+ * and emitting `:nth-last-child(of-type-2)`.
+ *
+ * A bare argument must be a plain non-negative integer, which is what
+ * Tailwind accepts: it rejects `nth-2.5`, `nth--3` and `nth-abc`, and a
+ * variant we cannot resolve has to drop the rule rather than pass a raw word
+ * through to CSS. A bracketed argument is an An+B microsyntax expression and
+ * passes through verbatim, so `nth-[2n+1]`, `nth-[-n+3]` and `nth-[odd]` all
+ * work.
+ */
+const NTH_VARIANT_FUNCTIONS: [string, string][] = [
+  ['nth-last-of-type-', 'nth-last-of-type'],
+  ['nth-of-type-', 'nth-of-type'],
+  ['nth-last-', 'nth-last-child'],
+  ['nth-', 'nth-child'],
+]
+
+function nthVariantSelector(variant: string): string | undefined {
+  for (let i = 0; i < NTH_VARIANT_FUNCTIONS.length; i++) {
+    const prefix = NTH_VARIANT_FUNCTIONS[i][0]
+    if (!variant.startsWith(prefix))
+      continue
+    const fn = NTH_VARIANT_FUNCTIONS[i][1]
+    const arg = variant.slice(prefix.length)
+    if (arg.charCodeAt(0) === 91 && arg.charCodeAt(arg.length - 1) === 93) {
+      const inner = arg.slice(1, -1).replace(/_/g, ' ').trim()
+      return inner ? `:${fn}(${inner})` : undefined
+    }
+    return /^\d+$/.test(arg) ? `:${fn}(${arg})` : undefined
+  }
+  return undefined
+}
+
 // Pre-computed prefix variants (these modify the selector prefix, not suffix)
 // Minify a static CSS block: strip comments, then collapse whitespace
 // around syntax characters. Used for preflight and keyframes, which were
@@ -2485,6 +2522,7 @@ export class CSSGenerator {
         || (variant.startsWith('max-') && this.screenBreakpoints.has(variant.slice(4)))
         || (variant.startsWith('@') && this.screenBreakpoints.has(variant.slice(1)))
         || variant === '*' || variant === '**'
+        || nthVariantSelector(variant) !== undefined
         || variant.startsWith('group-') || variant.startsWith('group/')
         || variant.startsWith('peer-') || variant.startsWith('peer/')
         || variant.startsWith('has-') || variant.startsWith('aria-') || variant.startsWith('data-')
@@ -2652,6 +2690,17 @@ export class CSSGenerator {
             selector += notSelector
           }
         }
+        continue
+      }
+
+      // nth-* variants: nth-3, nth-[2n+1], nth-last-3, nth-of-type-3,
+      // nth-last-of-type-2. An unresolvable argument returns undefined and
+      // the rule is already dropped by isVariantHandled, so there is nothing
+      // to fall back to here.
+      if (variant.charCodeAt(0) === 110 && variant.startsWith('nth-')) { // 'n' = 110
+        const nthSelector = nthVariantSelector(variant)
+        if (nthSelector !== undefined)
+          selector += nthSelector
         continue
       }
 

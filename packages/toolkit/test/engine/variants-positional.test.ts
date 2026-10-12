@@ -56,3 +56,75 @@ describe('Positional Variants', () => {
     expect(css).toContain(':last-child')
   })
 })
+
+describe('Functional nth-* variants', () => {
+  describe('accepted arguments', () => {
+    const cases: [string, string][] = [
+      ['nth-3:flex', ':nth-child(3)'],
+      ['nth-0:flex', ':nth-child(0)'],
+      ['nth-[3n+1]:flex', ':nth-child(3n+1)'],
+      ['nth-[odd]:flex', ':nth-child(odd)'],
+      ['nth-[-n+3]:flex', ':nth-child(-n+3)'],
+      ['nth-last-3:flex', ':nth-last-child(3)'],
+      ['nth-last-[2n]:flex', ':nth-last-child(2n)'],
+      ['nth-of-type-3:flex', ':nth-of-type(3)'],
+      ['nth-last-of-type-2:flex', ':nth-last-of-type(2)'],
+    ]
+
+    for (const [className, pseudo] of cases) {
+      it(`should resolve ${className} to ${pseudo}`, () => {
+        const gen = new CSSGenerator(defaultConfig)
+        gen.generate(className)
+        const css = gen.toCSS(false)
+        expect(css).toContain(pseudo)
+        expect(css).toContain('display: flex;')
+      })
+    }
+
+    it('should try the longest prefix first', () => {
+      // `nth-last-of-type-2` must not be eaten by the `nth-last-` prefix and
+      // emit the nonsense `:nth-last-child(of-type-2)`.
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('nth-last-of-type-2:flex')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':nth-last-of-type(2)')
+      expect(css).not.toContain(':nth-last-child(')
+    })
+  })
+
+  describe('rejected arguments', () => {
+    // Tailwind rejects all of these, and a variant we cannot resolve has to
+    // drop the whole rule rather than pass a raw word through to CSS.
+    for (const className of ['nth-2.5:flex', 'nth-abc:flex', 'nth--3:flex', 'nth-of-type-abc:flex', 'nth-[]:flex']) {
+      it(`should generate nothing for ${className}`, () => {
+        const gen = new CSSGenerator(defaultConfig)
+        gen.generate(className)
+        expect(gen.toCSS(false)).toBe('')
+      })
+    }
+  })
+
+  describe('stacking', () => {
+    it('should combine with a breakpoint', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('md:nth-3:flex')
+      const css = gen.toCSS(false)
+      expect(css).toContain('@media (min-width: 768px)')
+      expect(css).toContain(':nth-child(3)')
+    })
+
+    it('should combine with a state variant', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('hover:nth-3:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':hover:nth-child(3)')
+    })
+
+    it('should combine with the child variant', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('*:nth-3:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':nth-child(3)')
+    })
+  })
+})
