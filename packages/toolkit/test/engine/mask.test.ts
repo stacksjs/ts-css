@@ -301,3 +301,123 @@ describe('Gradient masks: linear and edges', () => {
     })
   })
 })
+
+describe('Gradient masks: radial and conic', () => {
+  describe('radial stops', () => {
+    it('should build the radial stop list with all three shape variables', () => {
+      const out = css('mask-radial-from-50%')
+      expect(out).toContain('var(--tc-mask-radial-shape, ellipse)')
+      expect(out).toContain('var(--tc-mask-radial-size, farthest-corner)')
+      expect(out).toContain('at var(--tc-mask-radial-position, center)')
+      expect(out).toContain('--tc-mask-radial:radial-gradient(var(--tc-mask-radial-stops))')
+    })
+
+    it('should set a position stop', () => {
+      expect(css('mask-radial-from-50%')).toContain('--tc-mask-radial-from-position:50%')
+    })
+
+    it('should set a colour stop', () => {
+      expect(css('mask-radial-from-black')).toContain('--tc-mask-radial-from-color:#000')
+    })
+
+    it('should set a to stop', () => {
+      expect(css('mask-radial-to-80%')).toContain('--tc-mask-radial-to-position:80%')
+    })
+  })
+
+  describe('radial shape, size and position', () => {
+    it('should set the shape from mask-circle and mask-ellipse', () => {
+      expect(css('mask-circle')).toBe('.mask-circle{--tc-mask-radial-shape:circle}')
+      expect(css('mask-ellipse')).toBe('.mask-ellipse{--tc-mask-radial-shape:ellipse}')
+    })
+
+    it('should emit only the variable, with no composed mask-image', () => {
+      // These are modifiers on a radial mask, not masks in their own right.
+      expect(css('mask-circle')).not.toContain('mask-image')
+      expect(css('mask-radial-closest-side')).not.toContain('mask-image')
+      expect(css('mask-radial-at-center')).not.toContain('mask-image')
+    })
+
+    const sizes = ['closest-side', 'closest-corner', 'farthest-side', 'farthest-corner']
+    for (const size of sizes) {
+      it(`should set the size for mask-radial-${size}`, () => {
+        expect(css(`mask-radial-${size}`)).toContain(`--tc-mask-radial-size:${size}`)
+      })
+    }
+
+    it('should accept an arbitrary size', () => {
+      const out = css('mask-radial-[50%_50%]')
+      expect(out).toContain('--tc-mask-radial-size:50% 50%')
+      // An arbitrary size DOES compose, unlike the keyword sizes.
+      expect(out).toContain('mask-composite:intersect')
+    })
+
+    it('should keep the token word order for positions', () => {
+      // `top left` here, where mask-position reorders to `left top`.
+      expect(css('mask-radial-at-top-left')).toContain('--tc-mask-radial-position:top left')
+      expect(css('mask-radial-at-bottom-right')).toContain('--tc-mask-radial-position:bottom right')
+      expect(css('mask-radial-at-center')).toContain('--tc-mask-radial-position:center')
+    })
+  })
+
+  describe('conic', () => {
+    it('should set the start angle through calc', () => {
+      expect(css('mask-conic-180')).toContain('--tc-mask-conic-position:calc(1deg * 180)')
+    })
+
+    it('should negate the angle for the -mask- form', () => {
+      expect(css('-mask-conic-90')).toContain('--tc-mask-conic-position:calc(1deg * -90)')
+    })
+
+    it('should build the conic stop list with the from keyword', () => {
+      const out = css('mask-conic-from-50%')
+      expect(out).toContain('--tc-mask-conic-stops:from var(--tc-mask-conic-position, 0deg)')
+      expect(out).toContain('--tc-mask-conic:conic-gradient(var(--tc-mask-conic-stops))')
+      expect(out).toContain('--tc-mask-conic-from-position:50%')
+    })
+
+    it('should set a colour stop', () => {
+      expect(css('mask-conic-from-black')).toContain('--tc-mask-conic-from-color:#000')
+    })
+
+    it('should reject a negative sign on a stop', () => {
+      expect(css('-mask-conic-from-50%')).toBe('')
+    })
+  })
+
+  describe('rejection', () => {
+    it('should generate nothing for an unknown radial value', () => {
+      expect(css('mask-radial-bogus')).toBe('')
+    })
+
+    it('should generate nothing for an unknown radial position', () => {
+      expect(css('mask-radial-at-bogus')).toBe('')
+    })
+
+    it('should generate nothing for an unknown conic value', () => {
+      expect(css('mask-conic-bogus')).toBe('')
+    })
+  })
+
+  describe('composition across families', () => {
+    it('should let a radial mask and a shape modifier combine', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('mask-radial-from-50%')
+      gen.generate('mask-circle')
+      const out = gen.toCSS(false, true)
+      expect(out).toContain('--tc-mask-radial-from-position:50%')
+      expect(out).toContain('--tc-mask-radial-shape:circle')
+    })
+
+    it('should let linear, radial and conic masks coexist', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('mask-linear-from-20%')
+      gen.generate('mask-radial-from-50%')
+      gen.generate('mask-conic-from-10%')
+      const out = gen.toCSS(false, true)
+      expect(out).toContain('--tc-mask-linear-from-position:20%')
+      expect(out).toContain('--tc-mask-radial-from-position:50%')
+      expect(out).toContain('--tc-mask-conic-from-position:10%')
+    })
+  })
+})

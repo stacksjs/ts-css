@@ -306,11 +306,161 @@ export const maskEdgeRule: UtilityRule = (parsed, config) => {
   return properties
 }
 
+/**
+ * Radial masks need three shape variables on top of the colour stops, and
+ * each has its own initial value: an ellipse, sized to the farthest corner,
+ * centred.
+ */
+const MASK_RADIAL_STOPS = [
+  `${maskVar('radial-shape', 'ellipse')} ${maskVar('radial-size', 'farthest-corner')} at ${maskVar('radial-position', 'center')}`,
+  `${maskVar('radial-from-color', 'black')} ${maskVar('radial-from-position', '0%')}`,
+  `${maskVar('radial-to-color', 'transparent')} ${maskVar('radial-to-position', '100%')}`,
+].join(', ')
+
+const MASK_RADIAL_SIZES = new Set([
+  'closest-side',
+  'closest-corner',
+  'farthest-side',
+  'farthest-corner',
+])
+
+/**
+ * Radial positions keep the token's own word order — `mask-radial-at-top-left`
+ * is `top left`. Note this is the opposite of `mask-position`, where
+ * `mask-top-left` is `left top`; both match Tailwind.
+ */
+const MASK_RADIAL_POSITIONS: Record<string, string> = {
+  'center': 'center',
+  'top': 'top',
+  'right': 'right',
+  'bottom': 'bottom',
+  'left': 'left',
+  'top-left': 'top left',
+  'top-right': 'top right',
+  'bottom-left': 'bottom left',
+  'bottom-right': 'bottom right',
+}
+
+const MASK_CONIC_STOPS = [
+  `from ${maskVar('conic-position', '0deg')}`,
+  `${maskVar('conic-from-color', 'black')} ${maskVar('conic-from-position', '0%')}`,
+  `${maskVar('conic-to-color', 'transparent')} ${maskVar('conic-to-position', '100%')}`,
+].join(', ')
+
+/**
+ * Radial gradient masks: stops (`mask-radial-from-50%`), the shape
+ * (`mask-circle`, `mask-ellipse`), the size (`mask-radial-closest-side`,
+ * `mask-radial-[50%_50%]`) and the centre (`mask-radial-at-top-left`).
+ *
+ * The shape, size and position utilities deliberately emit ONLY their
+ * variable, with no composed `mask-image` — they are modifiers on a radial
+ * mask rather than masks in their own right, and that is what Tailwind does.
+ */
+export const maskRadialRule: UtilityRule = (parsed, config) => {
+  // Arbitrary size: mask-radial-[50%_50%]
+  if (parsed.utility === 'mask-radial' && parsed.arbitrary && parsed.value) {
+    return {
+      ...maskComposeBase(),
+      '--tc-mask-radial': `radial-gradient(${maskVar('radial-stops', maskVar('radial-size', 'farthest-corner'))})`,
+      '--tc-mask-radial-size': parsed.value,
+    }
+  }
+
+  if (parsed.utility !== 'mask' || !parsed.value || parsed.arbitrary)
+    return undefined
+
+  const value = parsed.value
+
+  if (value === 'circle' || value === 'ellipse')
+    return { '--tc-mask-radial-shape': value }
+
+  if (!value.startsWith('radial-'))
+    return undefined
+
+  const tail = value.slice(7)
+
+  if (tail.startsWith('at-')) {
+    const position = MASK_RADIAL_POSITIONS[tail.slice(3)]
+    return position === undefined ? undefined : { '--tc-mask-radial-position': position }
+  }
+
+  if (MASK_RADIAL_SIZES.has(tail))
+    return { '--tc-mask-radial-size': tail }
+
+  const split = splitStop(tail)
+  if (split === undefined)
+    return undefined
+
+  const resolved = resolveMaskStop(split.token, parsed.arbitrary, config)
+  if (resolved === undefined)
+    return undefined
+
+  const properties: Record<string, string> = {
+    ...maskComposeBase(),
+    '--tc-mask-radial-stops': MASK_RADIAL_STOPS,
+    '--tc-mask-radial': 'radial-gradient(var(--tc-mask-radial-stops))',
+  }
+  if (resolved.color !== undefined)
+    properties[`--tc-mask-radial-${split.stop}-color`] = resolved.color
+  else
+    properties[`--tc-mask-radial-${split.stop}-position`] = resolved.position!
+  return properties
+}
+
+/**
+ * Conic gradient masks: a start angle (`mask-conic-180`, `-mask-conic-90`) or
+ * a stop (`mask-conic-from-50%`, `mask-conic-to-black`).
+ */
+export const maskConicRule: UtilityRule = (parsed, config) => {
+  if (parsed.utility !== 'mask' || !parsed.value || parsed.arbitrary)
+    return undefined
+
+  const value = parsed.value
+  const negative = value.charCodeAt(0) === 45 // '-'
+  const body = negative ? value.slice(1) : value
+  if (!body.startsWith('conic-'))
+    return undefined
+
+  const tail = body.slice(6)
+
+  if (/^\d+(?:\.\d+)?$/.test(tail)) {
+    return {
+      ...maskComposeBase(),
+      '--tc-mask-conic': `conic-gradient(${maskVar('conic-stops', maskVar('conic-position', '0deg'))})`,
+      '--tc-mask-conic-position': `calc(1deg * ${negative ? '-' : ''}${tail})`,
+    }
+  }
+
+  if (negative)
+    return undefined
+
+  const split = splitStop(tail)
+  if (split === undefined)
+    return undefined
+
+  const resolved = resolveMaskStop(split.token, parsed.arbitrary, config)
+  if (resolved === undefined)
+    return undefined
+
+  const properties: Record<string, string> = {
+    ...maskComposeBase(),
+    '--tc-mask-conic-stops': MASK_CONIC_STOPS,
+    '--tc-mask-conic': 'conic-gradient(var(--tc-mask-conic-stops))',
+  }
+  if (resolved.color !== undefined)
+    properties[`--tc-mask-conic-${split.stop}-color`] = resolved.color
+  else
+    properties[`--tc-mask-conic-${split.stop}-position`] = resolved.position!
+  return properties
+}
+
 export const maskRules: UtilityRule[] = [
-  // Gradient masks before the preset table: both match the bare `mask`
-  // utility, and only these two know the compound value shapes.
+  // Gradient masks before the preset table: they all match the bare `mask`
+  // utility, and only these know the compound value shapes.
   maskLinearRule,
   maskEdgeRule,
+  maskRadialRule,
+  maskConicRule,
   maskPresetRule,
   maskRepeatAxisRule,
 ]
