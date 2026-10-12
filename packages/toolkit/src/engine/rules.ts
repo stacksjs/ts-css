@@ -3,6 +3,7 @@ import { colorModifierSlashIndex } from './color-modifier'
 import { advancedRules } from './rules-advanced'
 import { effectsRules } from './rules-effects'
 import { maskRules } from './rules-mask'
+import { shadowRules } from './rules-shadow'
 import { formsRules } from './rules-forms'
 import { gridRules } from './rules-grid'
 import { iconRule } from './rules-icons'
@@ -1253,6 +1254,10 @@ export const builtInRules: UtilityRule[] = [
   ...typographyRules, // handles text-ellipsis, text-wrap, text-transform, contentRule, etc.
   fontWeightRule,
   leadingRule,       // handles leading-{size} (leading-tight, leading-none, etc.)
+
+  // Inset shadow/ring layers. MUST come before the positioning `inset`
+  // rule below so `inset-shadow-sm` is not read as an inset offset.
+  ...shadowRules,
 
   // Mask utilities (v4 names: mask-add, mask-center, mask-cover, …)
   // MUST come before effectsRules, whose maskRule owns the longhand
