@@ -860,6 +860,8 @@ const variantPrefixes = new Set([
   'empty', 'before', 'after',
   // Selection
   'selection', 'marker', 'file',
+  // Pseudo-elements
+  'first-letter', 'first-line', 'backdrop', 'details-content',
   // Print
   'print',
   // Motion

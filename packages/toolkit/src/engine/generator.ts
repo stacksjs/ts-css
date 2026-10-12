@@ -1402,6 +1402,10 @@ const VARIANT_SELECTORS: Record<string, string> = {
   'placeholder': '::placeholder',
   'selection': '::selection',
   'file': '::file-selector-button',
+  'first-letter': '::first-letter',
+  'first-line': '::first-line',
+  'backdrop': '::backdrop',
+  'details-content': '::details-content',
   // Form state pseudo-classes
   'required': ':required',
   'valid': ':valid',

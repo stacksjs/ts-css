@@ -156,6 +156,10 @@ export interface VariantConfig {
   'before': boolean
   'after': boolean
   'marker': boolean
+  'first-letter': boolean
+  'first-line': boolean
+  'backdrop': boolean
+  'details-content': boolean
   // Pseudo-classes - Basic
   'first': boolean
   'last': boolean
