@@ -77,44 +77,54 @@ const GROW_SHRINK_MAP: Record<string, Record<string, string>> = {
 
 // Justify content - utility="justify", value lookup
 const JUSTIFY_CONTENT_VALUES: Record<string, string> = {
-  start: 'flex-start',
-  end: 'flex-end',
-  center: 'center',
-  between: 'space-between',
-  around: 'space-around',
-  evenly: 'space-evenly',
+  'start': 'flex-start',
+  'end': 'flex-end',
+  'center': 'center',
+  'between': 'space-between',
+  'around': 'space-around',
+  'evenly': 'space-evenly',
+  // `safe` falls back to start alignment rather than letting centred content
+  // overflow both edges of its container and become unreachable.
+  'center-safe': 'safe center',
+  'end-safe': 'safe flex-end',
 }
 
 // Align items - utility="items", value lookup
 const ALIGN_ITEMS_VALUES: Record<string, string> = {
-  start: 'flex-start',
-  end: 'flex-end',
-  center: 'center',
-  baseline: 'baseline',
-  stretch: 'stretch',
+  'start': 'flex-start',
+  'end': 'flex-end',
+  'center': 'center',
+  'baseline': 'baseline',
+  'stretch': 'stretch',
+  'center-safe': 'safe center',
+  'end-safe': 'safe flex-end',
 }
 
 // Align content - utility="content", value lookup
 const ALIGN_CONTENT_VALUES: Record<string, string> = {
-  normal: 'normal',
-  center: 'center',
-  start: 'flex-start',
-  end: 'flex-end',
-  between: 'space-between',
-  around: 'space-around',
-  evenly: 'space-evenly',
-  baseline: 'baseline',
-  stretch: 'stretch',
+  'normal': 'normal',
+  'center': 'center',
+  'start': 'flex-start',
+  'end': 'flex-end',
+  'between': 'space-between',
+  'around': 'space-around',
+  'evenly': 'space-evenly',
+  'baseline': 'baseline',
+  'stretch': 'stretch',
+  'center-safe': 'safe center',
+  'end-safe': 'safe flex-end',
 }
 
 // Align self - utility="self", value lookup
 const ALIGN_SELF_VALUES: Record<string, string> = {
-  auto: 'auto',
-  start: 'flex-start',
-  end: 'flex-end',
-  center: 'center',
-  stretch: 'stretch',
-  baseline: 'baseline',
+  'auto': 'auto',
+  'start': 'flex-start',
+  'end': 'flex-end',
+  'center': 'center',
+  'stretch': 'stretch',
+  'baseline': 'baseline',
+  'center-safe': 'safe center',
+  'end-safe': 'safe flex-end',
 }
 
 // Border style - direct raw class to CSS
@@ -287,6 +297,9 @@ const PLACE_CONTENT_VALUES: Record<string, string> = {
   'around': 'space-around',
   'evenly': 'space-evenly',
   'stretch': 'stretch',
+  // The grid shorthands take `safe end`, not the flexbox `safe flex-end`.
+  'center-safe': 'safe center',
+  'end-safe': 'safe end',
 }
 
 // Ring utilities - direct raw class to CSS

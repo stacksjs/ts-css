@@ -212,6 +212,8 @@ export const justifyItemsRule: UtilityRule = (parsed) => {
       'items-end': 'end',
       'items-center': 'center',
       'items-stretch': 'stretch',
+      'items-center-safe': 'safe center',
+      'items-end-safe': 'safe end',
     }
     return values[parsed.value] ? { 'justify-items': values[parsed.value] } : undefined
   }
