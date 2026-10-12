@@ -990,7 +990,7 @@ describe('stacked at-rule variants and dark mode strategy', () => {
     gen.generate('@sm:print:hidden')
     const out = gen.toCSS(false)
     expect(out).toContain('@media print')
-    expect(out).toContain('@container (min-width: 640px)')
+    expect(out).toContain('@container (width >= 24rem)')
   })
 
   it('keeps single supports/container variants working', () => {
@@ -998,7 +998,7 @@ describe('stacked at-rule variants and dark mode strategy', () => {
     gen.generateBatch(['supports-[display:grid]:grid', '@md:flex'])
     const out = gen.toCSS(false)
     expect(out).toContain('@supports (display: grid)')
-    expect(out).toContain('@container (min-width: 768px)')
+    expect(out).toContain('@container (width >= 28rem)')
   })
 
   it('darkMode media emits prefers-color-scheme instead of a class prefix', () => {

@@ -364,6 +364,24 @@ export const defaultConfig: CssConfig = {
       'xl': '1280px',
       '2xl': '1536px',
     },
+    // Container queries measure an ELEMENT, not the viewport, so they get
+    // their own much smaller scale. Reusing `screens` here — which is what
+    // this engine used to do — made `@sm:` fire at 640px instead of 24rem.
+    containers: {
+      '3xs': '16rem',
+      '2xs': '18rem',
+      'xs': '20rem',
+      'sm': '24rem',
+      'md': '28rem',
+      'lg': '32rem',
+      'xl': '36rem',
+      '2xl': '42rem',
+      '3xl': '48rem',
+      '4xl': '56rem',
+      '5xl': '64rem',
+      '6xl': '72rem',
+      '7xl': '80rem',
+    },
     borderRadius: {
       'none': '0',
       'xs': '0.125rem',

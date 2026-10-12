@@ -1656,6 +1656,25 @@ function supportsCondition(value: string): string {
   return `(${value})`
 }
 
+/**
+ * Split a container-query variant's `/name` suffix off its size token.
+ *
+ * The slash has to be found OUTSIDE any brackets, or an arbitrary size
+ * containing one — `@min-[calc(100%/2)]` — would be read as a container
+ * named `2)]`.
+ */
+function splitContainerName(token: string): { size: string, name?: string } {
+  let depth = 0
+  for (let i = token.length - 1; i >= 0; i--) {
+    const c = token.charCodeAt(i)
+    if (c === 93) depth++ // ]
+    else if (c === 91) depth-- // [
+    else if (c === 47 && depth === 0) // /
+      return { size: token.slice(0, i), name: token.slice(i + 1) }
+  }
+  return { size: token }
+}
+
 // Separator between stacked at-rule wrappers in a rule-group key
 // (@media + @supports + @container). Never appears in CSS text.
 const AT_RULE_SEPARATOR = '\u0001'
@@ -1706,6 +1725,7 @@ const commonColorsCache = new WeakMap<object, Record<string, string>>()
 const skipStaticRadiusCache = new WeakMap<object, boolean>()
 const skipStaticShadowCache = new WeakMap<object, boolean>()
 const screenBreakpointsCache = new WeakMap<object, Map<string, string>>()
+const containerBreakpointsCache = new WeakMap<object, Map<string, string>>()
 
 function resolveSpacingValues(spacing: Record<string, string>): Record<string, string> {
   const cached = spacingValuesCache.get(spacing)
@@ -1810,6 +1830,16 @@ function resolveScreenBreakpoints(screens: Record<string, string>): Map<string, 
   return result
 }
 
+function resolveContainerBreakpoints(containers: Record<string, string>): Map<string, string> {
+  const cached = containerBreakpointsCache.get(containers)
+  if (cached)
+    return cached
+
+  const result = new Map(Object.entries(containers))
+  containerBreakpointsCache.set(containers, result)
+  return result
+}
+
 interface ProcessedConfig {
   config: CssConfig
   variantEnabled: Record<string, boolean>
@@ -1818,6 +1848,7 @@ interface ProcessedConfig {
   skipStaticRadius: boolean
   skipStaticShadow: boolean
   screenBreakpoints: Map<string, string>
+  containerBreakpoints: Map<string, string>
   blocklistRegexCache: RegExp[]
   blocklistExact: Set<string>
   extendColors: Record<string, string | Record<string, string>> | null
@@ -1899,6 +1930,7 @@ function processConfig(config: CssConfig): ProcessedConfig {
     skipStaticRadius,
     skipStaticShadow,
     screenBreakpoints: resolveScreenBreakpoints(config.theme.screens),
+    containerBreakpoints: resolveContainerBreakpoints(config.theme.containers),
     blocklistRegexCache,
     blocklistExact,
     extendColors,
@@ -2020,6 +2052,7 @@ export class CSSGenerator {
   private ruleCache: Map<string, UtilityRule[]> = new Map()
   private variantEnabled: Record<string, boolean>
   private screenBreakpoints: Map<string, string>
+  private containerBreakpoints: Map<string, string>
   private noMatchCache: Set<string> = new Set()
   private usedKeyframes: Set<string> = new Set()
   private variantHandledCache: Map<string, boolean> = new Map()
@@ -2056,6 +2089,7 @@ export class CSSGenerator {
     this.processed = processConfig(config)
     this.variantEnabled = this.processed.variantEnabled
     this.screenBreakpoints = this.processed.screenBreakpoints
+    this.containerBreakpoints = this.processed.containerBreakpoints
     this.extendColors = this.processed.extendColors
     this.darkStrategy = config.darkMode === 'media' ? 'media' : 'class'
     this.spacingValues = this.processed.spacingValues
@@ -2682,7 +2716,7 @@ export class CSSGenerator {
         || (variant.startsWith('not-') && this.isNegationResolvable(variant.slice(4)))
         || this.screenBreakpoints.has(variant)
         || (variant.startsWith('max-') && this.screenBreakpoints.has(variant.slice(4)))
-        || (variant.startsWith('@') && this.screenBreakpoints.has(variant.slice(1)))
+        || (variant.charCodeAt(0) === 64 && this.containerQuery(variant.slice(1)) !== undefined)
         || variant === '*' || variant === '**'
         || nthVariantSelector(variant) !== undefined
         || (variant.startsWith('in-') && ancestorConditionSelector(variant.slice(3)) !== undefined)
@@ -2696,6 +2730,48 @@ export class CSSGenerator {
         || ['print', 'motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', 'landscape', 'portrait', 'forced-colors'].includes(variant)
     this.variantHandledCache.set(variant, known)
     return known
+  }
+
+  /**
+   * Resolve a container-query variant to its at-rule prelude.
+   *
+   * Range syntax (`width >= 24rem`) rather than `min-width`, matching
+   * Tailwind. That is safe here in a way it would not be for media queries:
+   * anything that understands `@container` at all also understands range
+   * syntax, and it avoids the off-by-0.02px fudge the `max-*` media variant
+   * needs to express an exclusive bound.
+   */
+  private containerQuery(token: string): string | undefined {
+    if (!token)
+      return undefined
+
+    const { size, name } = splitContainerName(token)
+    if (!size || (name !== undefined && !name))
+      return undefined
+
+    let bound = size
+    let inclusive = true
+    if (size.startsWith('max-')) {
+      bound = size.slice(4)
+      inclusive = false
+    }
+    else if (size.startsWith('min-')) {
+      bound = size.slice(4)
+    }
+
+    let length: string | undefined
+    if (bound.charCodeAt(0) === 91 && bound.charCodeAt(bound.length - 1) === 93) {
+      const inner = bound.slice(1, -1).replace(/_/g, ' ').trim()
+      length = inner || undefined
+    }
+    else {
+      length = this.containerBreakpoints.get(bound)
+    }
+    if (length === undefined)
+      return undefined
+
+    const condition = inclusive ? `(width >= ${length})` : `(width < ${length})`
+    return name === undefined ? `@container ${condition}` : `@container ${name} ${condition}`
   }
 
   /**
@@ -3086,13 +3162,13 @@ export class CSSGenerator {
         continue
       }
 
-      // Container queries (@sm, @md, @lg, etc.) - '@' = 64
+      // Container queries - '@' = 64. The grammar is
+      //   @<size> | @min-<size> | @max-<size>, each optionally /<name>
+      // where <size> is a key of theme.containers or an arbitrary [length].
       if (firstChar === 64) {
-        const breakpointKey = variant.slice(1)
-        const breakpoint = this.screenBreakpoints.get(breakpointKey)
-        if (breakpoint) {
-          containerQueries.push(`@container (min-width: ${breakpoint})`)
-        }
+        const query = this.containerQuery(variant.slice(1))
+        if (query !== undefined)
+          containerQueries.push(query)
         continue
       }
 

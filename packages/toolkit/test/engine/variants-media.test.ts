@@ -179,7 +179,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@sm:p-4')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 640px)')
+      expect(css).toContain('@container (width >= 24rem)')
       expect(css).toContain('padding: 1rem;')
     })
 
@@ -187,7 +187,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@md:flex')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 768px)')
+      expect(css).toContain('@container (width >= 28rem)')
       expect(css).toContain('display: flex;')
     })
 
@@ -195,7 +195,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@lg:hidden')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 1024px)')
+      expect(css).toContain('@container (width >= 32rem)')
       expect(css).toContain('display: none;')
     })
 
@@ -203,7 +203,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@xl:grid')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 1280px)')
+      expect(css).toContain('@container (width >= 36rem)')
       expect(css).toContain('display: grid;')
     })
 
@@ -211,7 +211,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@2xl:inline-flex')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 1536px)')
+      expect(css).toContain('@container (width >= 42rem)')
       expect(css).toContain('display: inline-flex;')
     })
 
@@ -226,7 +226,7 @@ describe('Media Query and Feature Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('@md:hover:bg-blue-500')
       const css = gen.toCSS(false)
-      expect(css).toContain('@container (min-width: 768px)')
+      expect(css).toContain('@container (width >= 28rem)')
       expect(css).toContain(':hover')
     })
   })

@@ -135,6 +135,12 @@ export interface Theme {
   /** Named line-heights for the `text-{size}/{leading}` slash syntax (e.g. `text-base/loose`). */
   lineHeight?: Record<string, string>
   screens: Record<string, string>
+  /**
+   * Container-query breakpoints. A SEPARATE scale from `screens` — an
+   * element's container is far narrower than the viewport, so `@sm` is
+   * 24rem where the `sm` screen breakpoint is 640px.
+   */
+  containers: Record<string, string>
   borderRadius: Record<string, string>
   boxShadow: Record<string, string>
   /** Extend theme values without replacing defaults */
