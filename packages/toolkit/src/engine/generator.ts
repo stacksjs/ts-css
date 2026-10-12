@@ -2484,6 +2484,7 @@ export class CSSGenerator {
         || this.screenBreakpoints.has(variant)
         || (variant.startsWith('max-') && this.screenBreakpoints.has(variant.slice(4)))
         || (variant.startsWith('@') && this.screenBreakpoints.has(variant.slice(1)))
+        || variant === '*' || variant === '**'
         || variant.startsWith('group-') || variant.startsWith('group/')
         || variant.startsWith('peer-') || variant.startsWith('peer/')
         || variant.startsWith('has-') || variant.startsWith('aria-') || variant.startsWith('data-')
@@ -2585,6 +2586,21 @@ export class CSSGenerator {
         const inner = variant.slice(1, -1).replace(/_/g, ' ')
         if (inner.includes('&')) {
           selector = inner.replace(/&/g, selector)
+        }
+        continue
+      }
+
+      // Child (`*:`) and descendant (`**:`) variants style an element's
+      // children rather than the element itself, so they wrap the selector
+      // built so far instead of appending to it. The `:is()` wrapper is what
+      // keeps specificity at the class's own (0,1,0) — `:is()` takes the
+      // specificity of its most specific argument — so `*:p-2` does not
+      // outrank a `p-4` set directly on the child.
+      if (variant === '*' || variant === '**') {
+        if (this.variantEnabled[variant]) {
+          selector = variant === '*'
+            ? `:is(${selector} > *)`
+            : `:is(${selector} *)`
         }
         continue
       }

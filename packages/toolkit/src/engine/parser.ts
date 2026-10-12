@@ -848,6 +848,8 @@ const variantPrefixes = new Set([
   'focus-within', 'focus-visible',
   // Group/peer
   'group-hover', 'group-focus', 'peer-hover', 'peer-focus',
+  // Child/descendant
+  '*', '**',
   // Dark mode
   'dark',
   // First/last/odd/even

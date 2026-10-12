@@ -152,6 +152,9 @@ export interface VariantConfig {
   // Group/Peer
   'group': boolean
   'peer': boolean
+  // Child (*) and descendant (**)
+  '*': boolean
+  '**': boolean
   // Pseudo-elements
   'before': boolean
   'after': boolean

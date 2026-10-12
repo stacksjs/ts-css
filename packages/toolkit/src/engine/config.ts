@@ -471,6 +471,8 @@ export const defaultConfig: CssConfig = {
     'light': true,
     'group': true,
     'peer': true,
+    '*': true,
+    '**': true,
     'before': true,
     'after': true,
     'marker': true,
