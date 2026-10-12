@@ -88,6 +88,50 @@ export const insetShadowRule: UtilityRule = (parsed, config: CssConfig) => {
   return color === undefined ? undefined : { '--tc-inset-shadow-color': color }
 }
 
+/**
+ * An inset ring is a uniform inner outline drawn as a spread-only shadow.
+ *
+ * The default width is 1px, which is Tailwind v4's. Note this engine's own
+ * `ring` is still 3px — the Tailwind v3 default — so the two differ. That is
+ * deliberate for now: `inset-ring` is new and has no existing users to break,
+ * while changing `ring` would silently rescale every existing ring.
+ */
+function insetRingLayer(width: string): Record<string, string> {
+  return {
+    '--tc-inset-ring-shadow': `inset 0 0 0 ${width} var(--tc-inset-ring-color, currentcolor)`,
+    'box-shadow': BOX_SHADOW_LAYERS,
+  }
+}
+
+export const insetRingRule: UtilityRule = (parsed, config: CssConfig) => {
+  // Arbitrary form parses as its own utility: inset-ring-[3px]
+  if (parsed.utility === 'inset-ring' && parsed.arbitrary && parsed.value) {
+    if (looksLikeColor(parsed.value))
+      return { '--tc-inset-ring-color': parsed.value }
+    return insetRingLayer(parsed.value)
+  }
+
+  if (parsed.utility !== 'inset' || !parsed.value || parsed.arbitrary)
+    return undefined
+  if (parsed.value !== 'ring' && !parsed.value.startsWith('ring-'))
+    return undefined
+
+  // Bare `inset-ring` is the 1px default.
+  if (parsed.value === 'ring')
+    return insetRingLayer('1px')
+
+  const token = parsed.value.slice(5)
+
+  // Any bare number is a pixel width, not just the 0/1/2/4/8 scale —
+  // `inset-ring-3` is a valid Tailwind class.
+  if (/^\d+(?:\.\d+)?$/.test(token))
+    return insetRingLayer(`${token}px`)
+
+  const color = resolveColorValue(token, config, parsed.modifierArbitrary)
+  return color === undefined ? undefined : { '--tc-inset-ring-color': color }
+}
+
 export const shadowRules: UtilityRule[] = [
   insetShadowRule,
+  insetRingRule,
 ]
