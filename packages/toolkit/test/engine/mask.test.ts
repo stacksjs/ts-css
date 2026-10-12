@@ -159,3 +159,145 @@ describe('Mask utilities (Tailwind v4 names)', () => {
     })
   })
 })
+
+describe('Gradient masks: linear and edges', () => {
+  describe('the composed mask-image', () => {
+    it('should compose all three gradient layers', () => {
+      // Every gradient mask utility re-declares this, because any one of
+      // them may be the only mask utility on the element.
+      const out = css('mask-linear-45')
+      expect(out).toContain('--tc-mask-linear,')
+      expect(out).toContain('--tc-mask-radial,')
+      expect(out).toContain('--tc-mask-conic,')
+      expect(out).toContain('mask-composite:intersect')
+    })
+
+    it('should default an unset layer to an opaque white gradient', () => {
+      // The identity mask. A layer nobody set must not hide anything, and
+      // without @property the default has to travel in a var() fallback.
+      expect(css('mask-linear-45')).toContain('var(--tc-mask-radial, linear-gradient(#fff, #fff))')
+    })
+  })
+
+  describe('mask-linear-<angle>', () => {
+    it('should set the angle through calc', () => {
+      expect(css('mask-linear-45')).toContain('--tc-mask-linear-position:calc(1deg * 45)')
+    })
+
+    it('should negate the angle for the -mask- form', () => {
+      expect(css('-mask-linear-45')).toContain('--tc-mask-linear-position:calc(1deg * -45)')
+    })
+
+    it('should let a stop list override the bare angle', () => {
+      // --tc-mask-linear-stops wins when set; the angle is the fallback.
+      expect(css('mask-linear-45')).toContain('linear-gradient(var(--tc-mask-linear-stops, var(--tc-mask-linear-position, 0deg)))')
+    })
+  })
+
+  describe('mask-linear-from/to', () => {
+    it('should set a position stop', () => {
+      expect(css('mask-linear-from-20%')).toContain('--tc-mask-linear-from-position:20%')
+    })
+
+    it('should set a to position stop', () => {
+      expect(css('mask-linear-to-80%')).toContain('--tc-mask-linear-to-position:80%')
+    })
+
+    it('should set a colour stop from the theme', () => {
+      expect(css('mask-linear-from-black')).toContain('--tc-mask-linear-from-color:#000')
+    })
+
+    it('should build the full stop list', () => {
+      const out = css('mask-linear-from-20%')
+      expect(out).toContain('--tc-mask-linear-stops:var(--tc-mask-linear-position, 0deg)')
+      expect(out).toContain('var(--tc-mask-linear-from-color, black)')
+      expect(out).toContain('var(--tc-mask-linear-to-color, transparent)')
+    })
+
+    it('should reject a negative sign on a stop', () => {
+      expect(css('-mask-linear-from-20%')).toBe('')
+    })
+  })
+
+  describe('edge masks', () => {
+    const sides: [string, string][] = [
+      ['mask-t-from-50%', 'top'],
+      ['mask-r-from-50%', 'right'],
+      ['mask-b-from-50%', 'bottom'],
+      ['mask-l-from-50%', 'left'],
+    ]
+
+    for (const [className, side] of sides) {
+      it(`should build the ${side} layer for ${className}`, () => {
+        const out = css(className)
+        expect(out).toContain(`--tc-mask-${side}:linear-gradient(to ${side},`)
+        expect(out).toContain(`--tc-mask-${side}-from-position:50%`)
+      })
+    }
+
+    it('should compose the four edge layers into --tc-mask-linear', () => {
+      const out = css('mask-t-from-50%')
+      expect(out).toContain('--tc-mask-linear:var(--tc-mask-left,')
+      expect(out).toContain('var(--tc-mask-top, linear-gradient(#fff, #fff))')
+    })
+
+    it('should resolve a colour stop on an edge', () => {
+      expect(css('mask-r-from-black')).toContain('--tc-mask-right-from-color:#000')
+    })
+
+    it('should resolve a transparent to-stop', () => {
+      expect(css('mask-l-to-transparent')).toContain('--tc-mask-left-to-color:transparent')
+    })
+
+    it('should resolve a bare number through the spacing scale', () => {
+      // 20 * 0.25rem. Tailwind writes calc(var(--spacing) * 20); this engine
+      // resolves spacing to a concrete length everywhere, as p-8 does.
+      expect(css('mask-b-from-20')).toContain('--tc-mask-bottom-from-position:5rem')
+    })
+  })
+
+  describe('axis shorthands', () => {
+    it('should expand mask-x-* to right and left', () => {
+      const out = css('mask-x-from-10%')
+      expect(out).toContain('--tc-mask-right-from-position:10%')
+      expect(out).toContain('--tc-mask-left-from-position:10%')
+      expect(out).not.toContain('--tc-mask-top-from-position')
+    })
+
+    it('should expand mask-y-* to top and bottom', () => {
+      const out = css('mask-y-to-90%')
+      expect(out).toContain('--tc-mask-top-to-position:90%')
+      expect(out).toContain('--tc-mask-bottom-to-position:90%')
+      expect(out).not.toContain('--tc-mask-right-to-position')
+    })
+  })
+
+  describe('rejection and non-shadowing', () => {
+    it('should generate nothing for an unknown edge stop', () => {
+      expect(css('mask-t-bogus')).toBe('')
+    })
+
+    it('should generate nothing for an unknown side', () => {
+      expect(css('mask-z-from-10%')).toBe('')
+    })
+
+    it('should not let the edge rule shadow the position presets', () => {
+      // `mask-bottom-right` must stay a mask-position, not be read as an
+      // edge named `bottom`.
+      expect(css('mask-bottom-right')).toContain('mask-position:right bottom')
+      expect(css('mask-top')).toContain('mask-position:top')
+    })
+
+    it('should not let the edge rule shadow mask-no-repeat', () => {
+      expect(css('mask-no-repeat')).toContain('mask-repeat:no-repeat')
+    })
+  })
+
+  describe('variants', () => {
+    it('should work under a breakpoint', () => {
+      const out = css('md:mask-t-from-50%')
+      expect(out).toContain('@media (min-width: 768px)')
+      expect(out).toContain('--tc-mask-top-from-position:50%')
+    })
+  })
+})
