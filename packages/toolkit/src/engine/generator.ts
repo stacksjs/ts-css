@@ -311,13 +311,17 @@ const PLACE_CONTENT_VALUES: Record<string, string> = {
 function ringWidth(width: string): Record<string, string> {
   return {
     '--tc-ring-offset-shadow': 'var(--tc-ring-inset,) 0 0 0 var(--tc-ring-offset-width, 0px) var(--tc-ring-offset-color, #fff)',
-    '--tc-ring-shadow': `var(--tc-ring-inset,) 0 0 0 calc(${width} + var(--tc-ring-offset-width, 0px)) var(--tc-ring-color, rgba(59, 130, 246, 0.5))`,
+    '--tc-ring-shadow': `var(--tc-ring-inset,) 0 0 0 calc(${width} + var(--tc-ring-offset-width, 0px)) var(--tc-ring-color, currentcolor)`,
     'box-shadow': BOX_SHADOW_LAYERS,
   }
 }
 const RING_MAP: Record<string, Record<string, string>> = {
   // v4 narrowed the bare `ring` from 3px to 1px. `ring-3` still exists
   // for anyone who wants the old width back.
+  //
+  // The colour fallback is `currentcolor`, also v4's. It used to be the
+  // v3 blue, which meant an unstyled `ring` ignored the element's own
+  // colour and painted blue regardless of the surrounding design.
   'ring': ringWidth('1px'),
   'ring-0': ringWidth('0px'),
   'ring-1': ringWidth('1px'),

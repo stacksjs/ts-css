@@ -369,3 +369,43 @@ describe('ring default width', () => {
     expect(out.match(/calc\(1px \+/g)?.length).toBe(2)
   })
 })
+
+describe('ring default colour', () => {
+  // v4 changed the default from a fixed blue to currentcolor. The old
+  // default meant an unstyled `ring` ignored the element's own colour and
+  // painted blue regardless of the surrounding design.
+  it('should fall back to currentcolor', () => {
+    expect(css('ring')).toContain('var(--tc-ring-color, currentcolor)')
+  })
+
+  it('should no longer fall back to the v3 blue', () => {
+    expect(css('ring')).not.toContain('59, 130, 246')
+    expect(css('ring-2')).not.toContain('59, 130, 246')
+  })
+
+  it('should agree with inset-ring', () => {
+    expect(css('inset-ring')).toContain('var(--tc-inset-ring-color, currentcolor)')
+  })
+
+  it('should still let a colour utility override it', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generateBatch(['ring-2', 'ring-red-500'])
+    const out = gen.toCSS(false, true)
+    expect(out).toContain('var(--tc-ring-color, currentcolor)')
+    expect(out).toContain('--tc-ring-color:oklch(63.7% 0.237 25.331)')
+  })
+
+  it('should keep the two code paths in step', () => {
+    // As with the width, the colour fallback is spelled out once in the
+    // generator's RING_MAP and once in ringRule.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generateBatch(['ring', 'ring-3'])
+    const out = gen.toCSS(false, true)
+    expect(out.match(/var\(--tc-ring-color, currentcolor\)/g)?.length).toBe(2)
+  })
+
+  it('should leave the ring-offset colour alone', () => {
+    // ring-offset-color is #fff in v4 too, so it does not change.
+    expect(css('ring')).toContain('var(--tc-ring-offset-color, #fff)')
+  })
+})
