@@ -155,6 +155,8 @@ export interface VariantConfig {
   // Child (*) and descendant (**)
   '*': boolean
   '**': boolean
+  // Ancestor matching (in-*)
+  'in': boolean
   // Pseudo-elements
   'before': boolean
   'after': boolean

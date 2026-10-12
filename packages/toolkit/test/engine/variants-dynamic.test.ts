@@ -197,3 +197,92 @@ describe('Dynamic Attribute Variants', () => {
     })
   })
 })
+
+describe('in-* ancestor variants', () => {
+  describe('resolution', () => {
+    const cases: [string, string][] = [
+      ['in-focus:flex', ':where(:focus)'],
+      ['in-checked:flex', ':where(:checked)'],
+      ['in-disabled:flex', ':where(:disabled)'],
+      ['in-first:flex', ':where(:first-child)'],
+      ['in-open:flex', ':where([open])'],
+      ['in-aria-expanded:flex', ':where([aria-expanded="true"])'],
+      ['in-aria-[sort=asc]:flex', ':where([aria-sort=asc])'],
+      ['in-data-open:flex', ':where([data-open])'],
+      ['in-data-[state=open]:flex', ':where([data-state=open])'],
+      ['in-[.card]:flex', ':where(:is(.card))'],
+    ]
+
+    for (const [className, prefix] of cases) {
+      it(`should resolve ${className}`, () => {
+        const gen = new CSSGenerator(defaultConfig)
+        gen.generate(className)
+        const css = gen.toCSS(false)
+        expect(css).toContain(prefix)
+        expect(css).toContain('display: flex;')
+      })
+    }
+
+    it('should treat & in an arbitrary condition as the ancestor', () => {
+      // The `&` stands for the ancestor, not for the utility's own class.
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-[&>p]:flex')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':where(*>p)')
+    })
+  })
+
+  describe('rejection', () => {
+    it('should generate nothing for an unknown condition', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-bogus:flex')
+      expect(gen.toCSS(false)).toBe('')
+    })
+
+    it('should reject a pseudo-element as a condition', () => {
+      // ::before can never be an ancestor, even though `before` is a variant.
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-before:flex')
+      expect(gen.toCSS(false)).toBe('')
+    })
+
+    it('should generate nothing for an empty arbitrary condition', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-[]:flex')
+      expect(gen.toCSS(false)).toBe('')
+    })
+
+    it('should not shadow an exact variant that starts with in-', () => {
+      // `in-range` is its own variant name, not `in-` applied to `range`.
+      // Whatever it resolves to, it must not become :where(:range).
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-range:flex')
+      expect(gen.toCSS(false)).not.toContain(':where(')
+    })
+  })
+
+  describe('specificity and stacking', () => {
+    it('should wrap the condition in :where() so it adds no specificity', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-focus:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':where(:focus) .in-focus\\:underline')
+    })
+
+    it('should combine with a breakpoint', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('md:in-focus:flex')
+      const css = gen.toCSS(false)
+      expect(css).toContain('@media (min-width: 768px)')
+      expect(css).toContain(':where(:focus)')
+    })
+
+    it('should combine with a state variant on the element itself', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('in-focus:hover:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain(':where(:focus)')
+      expect(css).toContain(':hover')
+    })
+  })
+})

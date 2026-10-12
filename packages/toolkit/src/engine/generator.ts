@@ -1480,6 +1480,51 @@ function nthVariantSelector(variant: string): string | undefined {
   return undefined
 }
 
+/**
+ * Resolve the condition an `in-*` variant places on an ancestor.
+ *
+ * `in-*` is `group-*` without the bookkeeping: it styles an element when any
+ * ancestor matches, with no `group` class needed on that ancestor. The
+ * condition is resolved the same way the standalone variants resolve theirs,
+ * so `in-focus` reuses the `focus` selector and `in-data-open` the `data-*`
+ * attribute form.
+ *
+ * Returns undefined for a condition we cannot resolve (`in-bogus`), which
+ * drops the rule rather than emitting a raw word as a selector.
+ */
+function ancestorConditionSelector(token: string): string | undefined {
+  if (!token)
+    return undefined
+
+  // Arbitrary selector: in-[.card], in-[&>p]. A `&` stands for the ancestor
+  // itself, so it becomes `*` rather than the utility's own class.
+  if (token.charCodeAt(0) === 91 && token.charCodeAt(token.length - 1) === 93) {
+    const inner = token.slice(1, -1).replace(/_/g, ' ').trim()
+    if (!inner)
+      return undefined
+    return inner.includes('&') ? inner.replace(/&/g, '*') : `:is(${inner})`
+  }
+
+  if (token.startsWith('data-')) {
+    const value = token.slice(5)
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `[data-${value.slice(1, -1)}]`
+      : `[data-${value}]`
+  }
+
+  if (token.startsWith('aria-')) {
+    const value = token.slice(5)
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `[aria-${value.slice(1, -1)}]`
+      : `[aria-${value}="true"]`
+  }
+
+  // A pseudo-ELEMENT can never be an ancestor, so ::before and friends are
+  // not valid conditions even though they are valid variants.
+  const known = VARIANT_SELECTORS[token]
+  return known !== undefined && !known.startsWith('::') ? known : undefined
+}
+
 // Pre-computed prefix variants (these modify the selector prefix, not suffix)
 // Minify a static CSS block: strip comments, then collapse whitespace
 // around syntax characters. Used for preflight and keyframes, which were
@@ -2523,6 +2568,7 @@ export class CSSGenerator {
         || (variant.startsWith('@') && this.screenBreakpoints.has(variant.slice(1)))
         || variant === '*' || variant === '**'
         || nthVariantSelector(variant) !== undefined
+        || (variant.startsWith('in-') && ancestorConditionSelector(variant.slice(3)) !== undefined)
         || variant.startsWith('group-') || variant.startsWith('group/')
         || variant.startsWith('peer-') || variant.startsWith('peer/')
         || variant.startsWith('has-') || variant.startsWith('aria-') || variant.startsWith('data-')
@@ -2701,6 +2747,19 @@ export class CSSGenerator {
         const nthSelector = nthVariantSelector(variant)
         if (nthSelector !== undefined)
           selector += nthSelector
+        continue
+      }
+
+      // `in-*`: style this element when an ANCESTOR matches, with no group
+      // class required. The condition wraps in :where() so it contributes no
+      // specificity — an in-focus:underline must not outrank a plain
+      // underline the way a descendant selector would.
+      if (variant.charCodeAt(0) === 105 && variant.startsWith('in-')) { // 'i' = 105
+        if (this.variantEnabled.in) {
+          const condition = ancestorConditionSelector(variant.slice(3))
+          if (condition !== undefined)
+            prefix = `:where(${condition}) `
+        }
         continue
       }
 

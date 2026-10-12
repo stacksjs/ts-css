@@ -473,6 +473,7 @@ export const defaultConfig: CssConfig = {
     'peer': true,
     '*': true,
     '**': true,
+    'in': true,
     'before': true,
     'after': true,
     'marker': true,
