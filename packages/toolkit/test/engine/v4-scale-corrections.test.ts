@@ -103,3 +103,54 @@ describe('overflow-ellipsis', () => {
     expect(css('overflow-x-clip')).toContain('overflow-x:clip')
   })
 })
+
+describe('Drop-shadow scale (v4 values)', () => {
+  // v4 did not merely rename these: md, lg and xl were redrawn as a SINGLE
+  // drop-shadow each where v3 stacked two, and the offsets and opacities all
+  // changed. Checked against tailwindcss 4.3.3's --drop-shadow-* theme values.
+  const scale: [string, string][] = [
+    ['drop-shadow-xs', 'drop-shadow(0 1px 1px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.05)))'],
+    ['drop-shadow-sm', 'drop-shadow(0 1px 2px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.15)))'],
+    ['drop-shadow-md', 'drop-shadow(0 3px 3px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.12)))'],
+    ['drop-shadow-lg', 'drop-shadow(0 4px 4px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.15)))'],
+    ['drop-shadow-xl', 'drop-shadow(0 9px 7px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.1)))'],
+    ['drop-shadow-2xl', 'drop-shadow(0 25px 25px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.15)))'],
+  ]
+
+  for (const [className, value] of scale) {
+    it(`should give ${className} its v4 value`, () => {
+      expect(css(className)).toContain(`--tc-drop-shadow:${value}`)
+    })
+  }
+
+  it('should add drop-shadow-xs carrying what v3 called sm', () => {
+    // A v3 `drop-shadow-sm` migrates to `drop-shadow-xs`.
+    expect(css('drop-shadow-xs')).toContain('0 1px 1px')
+    expect(css('drop-shadow-sm')).not.toContain('0 1px 1px var(')
+  })
+
+  it('should collapse md, lg and xl to a single shadow each', () => {
+    for (const className of ['drop-shadow-md', 'drop-shadow-lg', 'drop-shadow-xl']) {
+      expect(css(className).match(/drop-shadow\(/g)?.length).toBe(1)
+    }
+  })
+
+  it('should keep the bare drop-shadow as two stacked shadows', () => {
+    // The one entry v4 left alone, along with 2xl.
+    expect(css('drop-shadow').match(/drop-shadow\(/g)?.length).toBe(2)
+  })
+
+  it('should have no drop-shadow-2xs', () => {
+    expect(css('drop-shadow-2xs')).toBe('')
+  })
+
+  it('should keep drop-shadow-none a no-op', () => {
+    expect(css('drop-shadow-none')).toContain('drop-shadow(0 0 #0000)')
+  })
+
+  it('should keep every scale entry recolourable', () => {
+    for (const [className] of scale) {
+      expect(css(className)).toContain('var(--tc-drop-shadow-color,')
+    }
+  })
+})

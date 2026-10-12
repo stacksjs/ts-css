@@ -1277,13 +1277,28 @@ const BACKDROP_FILTER_TOGGLE_MAP: Record<string, Record<string, string>> = {
 }
 
 // Drop shadow - direct raw class to CSS
+/**
+ * The v4 drop-shadow scale.
+ *
+ * v4 did not merely rename these: `md`, `lg` and `xl` were redrawn as a
+ * SINGLE drop-shadow each, where v3 stacked two, and their offsets and
+ * opacities all changed. `xs` is new and happens to carry v3's old `sm`
+ * value, so a v3 `drop-shadow-sm` maps to `drop-shadow-xs` here.
+ *
+ * `drop-shadow` (the bare DEFAULT) and `drop-shadow-2xl` are the two v4 kept
+ * unchanged from v3.
+ */
 const DROP_SHADOW_MAP: Record<string, Record<string, string>> = {
-  'drop-shadow-sm': cwFilter('drop-shadow', `drop-shadow(0 1px 1px ${dropShadowColor('rgb(0 0 0 / 0.05)')})`),
+  'drop-shadow-xs': cwFilter('drop-shadow', `drop-shadow(0 1px 1px ${dropShadowColor('rgb(0 0 0 / 0.05)')})`),
+  'drop-shadow-sm': cwFilter('drop-shadow', `drop-shadow(0 1px 2px ${dropShadowColor('rgb(0 0 0 / 0.15)')})`),
   'drop-shadow': cwFilter('drop-shadow', `drop-shadow(0 1px 2px ${dropShadowColor('rgb(0 0 0 / 0.1)')}) drop-shadow(0 1px 1px ${dropShadowColor('rgb(0 0 0 / 0.06)')})`),
-  'drop-shadow-md': cwFilter('drop-shadow', `drop-shadow(0 4px 3px ${dropShadowColor('rgb(0 0 0 / 0.07)')}) drop-shadow(0 2px 2px ${dropShadowColor('rgb(0 0 0 / 0.06)')})`),
-  'drop-shadow-lg': cwFilter('drop-shadow', `drop-shadow(0 10px 8px ${dropShadowColor('rgb(0 0 0 / 0.04)')}) drop-shadow(0 4px 3px ${dropShadowColor('rgb(0 0 0 / 0.1)')})`),
-  'drop-shadow-xl': cwFilter('drop-shadow', `drop-shadow(0 20px 13px ${dropShadowColor('rgb(0 0 0 / 0.03)')}) drop-shadow(0 8px 5px ${dropShadowColor('rgb(0 0 0 / 0.08)')})`),
+  'drop-shadow-md': cwFilter('drop-shadow', `drop-shadow(0 3px 3px ${dropShadowColor('rgb(0 0 0 / 0.12)')})`),
+  'drop-shadow-lg': cwFilter('drop-shadow', `drop-shadow(0 4px 4px ${dropShadowColor('rgb(0 0 0 / 0.15)')})`),
+  'drop-shadow-xl': cwFilter('drop-shadow', `drop-shadow(0 9px 7px ${dropShadowColor('rgb(0 0 0 / 0.1)')})`),
   'drop-shadow-2xl': cwFilter('drop-shadow', `drop-shadow(0 25px 25px ${dropShadowColor('rgb(0 0 0 / 0.15)')})`),
+  // A transparent shadow rather than Tailwind's empty value: the composed
+  // filter reads `var(--tc-drop-shadow, )`, so both resolve to no visible
+  // shadow, and a concrete value survives minification unambiguously.
   'drop-shadow-none': cwFilter('drop-shadow', 'drop-shadow(0 0 #0000)'),
 }
 

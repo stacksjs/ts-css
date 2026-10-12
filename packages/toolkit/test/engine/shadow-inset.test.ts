@@ -211,13 +211,15 @@ describe('drop-shadow and text-shadow colours', () => {
   describe('drop-shadow', () => {
     it('should route the scale colour through the override variable', () => {
       expect(css('drop-shadow-xl'))
-        .toContain('drop-shadow(0 20px 13px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.03)))')
+        .toContain('drop-shadow(0 9px 7px var(--tc-drop-shadow-color, rgb(0 0 0 / 0.1)))')
     })
 
     it('should apply the variable to every layer of a multi-shadow', () => {
-      // drop-shadow-xl is two stacked drop-shadow() functions; recolouring
-      // only the first would look like a bug.
-      const out = css('drop-shadow-xl')
+      // The bare `drop-shadow` is two stacked drop-shadow() functions —
+      // v4 redrew md/lg/xl as a single shadow each, so this is the only
+      // multi-layer entry left. Recolouring only the first would look like
+      // a bug.
+      const out = css('drop-shadow')
       expect(out.match(/var\(--tc-drop-shadow-color,/g)?.length).toBe(2)
     })
 
@@ -261,7 +263,7 @@ describe('drop-shadow and text-shadow colours', () => {
       gen.generate('drop-shadow-xl')
       gen.generate('drop-shadow-red-500')
       const out = gen.toCSS(false, true)
-      expect(out).toContain('var(--tc-drop-shadow-color, rgb(0 0 0 / 0.03))')
+      expect(out).toContain('var(--tc-drop-shadow-color, rgb(0 0 0 / 0.1))')
       expect(out).toContain('--tc-drop-shadow-color:oklch(63.7% 0.237 25.331)')
     })
   })
