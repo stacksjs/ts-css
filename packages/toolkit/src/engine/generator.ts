@@ -1435,16 +1435,66 @@ const VARIANT_SELECTORS: Record<string, string> = {
   'inert': ':is([inert], [inert] *)',
 }
 
-// Not-* variants (negated pseudo-classes)
-const NOT_VARIANT_SELECTORS: Record<string, string> = {
-  'not-first': ':not(:first-child)',
-  'not-last': ':not(:last-child)',
-  'not-only': ':not(:only-child)',
-  'not-empty': ':not(:empty)',
-  'not-disabled': ':not(:disabled)',
-  'not-checked': ':not(:checked)',
-  'not-first-of-type': ':not(:first-of-type)',
-  'not-last-of-type': ':not(:last-of-type)',
+/**
+ * Resolve the selector a variant contributes, so that `not-*` can negate it.
+ *
+ * `not-*` is a modifier, not a variant of its own: it wraps whatever the
+ * inner variant would have matched. Deriving that here is what replaced the
+ * fixed eight-entry table this used to be — `not-first` is just
+ * `:not(` + the `first` selector + `)`, and the same derivation gives
+ * `not-focus`, `not-nth-3`, `not-data-open` and the rest for free.
+ *
+ * Returns undefined when the inner variant contributes an at-rule rather
+ * than a selector (those are negated in getMediaQuery), or when it cannot be
+ * resolved at all. A pseudo-ELEMENT is rejected because `:not(::before)` is
+ * invalid CSS.
+ */
+function negatableVariantSelector(token: string): string | undefined {
+  if (!token)
+    return undefined
+
+  // Arbitrary selector: not-[.card]
+  if (token.charCodeAt(0) === 91 && token.charCodeAt(token.length - 1) === 93) {
+    const inner = token.slice(1, -1).replace(/_/g, ' ').trim()
+    return inner ? `:is(${inner})` : undefined
+  }
+
+  const direct = VARIANT_SELECTORS[token]
+  if (direct !== undefined)
+    return direct.startsWith('::') ? undefined : direct
+
+  const nth = nthVariantSelector(token)
+  if (nth !== undefined)
+    return nth
+
+  if (token.startsWith('has-')) {
+    const value = token.slice(4)
+    if (!value)
+      return undefined
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `:has(${value.slice(1, -1)})`
+      : `:has(:${value})`
+  }
+
+  if (token.startsWith('aria-') || token.startsWith('data-')) {
+    const attr = token.slice(0, 4)
+    const value = token.slice(5)
+    if (!value)
+      return undefined
+    if (value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93)
+      return `[${attr}-${value.slice(1, -1)}]`
+    return attr === 'aria' ? `[aria-${value}="true"]` : `[data-${value}]`
+  }
+
+  // `not-in-focus` is "not a descendant of a focused element", so the
+  // ancestor condition has to carry its descendant combinator inside the
+  // negation rather than becoming a prefix.
+  if (token.startsWith('in-')) {
+    const condition = ancestorConditionSelector(token.slice(3))
+    return condition === undefined ? undefined : `:where(${condition}) *`
+  }
+
+  return undefined
 }
 
 /**
@@ -1562,6 +1612,38 @@ const MEDIA_FEATURE_VARIANTS: Record<string, string> = {
   // Styles that should only apply with scripting unavailable. Note this is
   // the media feature, not the <noscript> element.
   'noscript': '(scripting: none)',
+}
+
+/**
+ * Media preference variants: one fixed condition each.
+ *
+ * Extracted from the switch in getMediaQuery so that `not-*` can negate the
+ * same conditions rather than restating them.
+ */
+const PREFERENCE_MEDIA_VARIANTS: Record<string, string> = {
+  'print': 'print',
+  'motion-safe': '(prefers-reduced-motion: no-preference)',
+  'motion-reduce': '(prefers-reduced-motion: reduce)',
+  'contrast-more': '(prefers-contrast: more)',
+  'contrast-less': '(prefers-contrast: less)',
+  'landscape': '(orientation: landscape)',
+  'portrait': '(orientation: portrait)',
+  'forced-colors': '(forced-colors: active)',
+}
+
+/**
+ * The condition half of a `supports-[…]` variant, without the at-rule name,
+ * so that both `@supports (…)` and `@supports not (…)` can build on it.
+ */
+function supportsCondition(value: string): string {
+  if (value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93) {
+    const inner = value.slice(1, -1).replace(/_/g, ' ')
+    const colonIdx = inner.indexOf(':')
+    if (colonIdx !== -1)
+      return `(${inner.slice(0, colonIdx).trim()}: ${inner.slice(colonIdx + 1).trim()})`
+    return `(${inner})`
+  }
+  return `(${value})`
 }
 
 // Separator between stacked at-rule wrappers in a rule-group key
@@ -2587,7 +2669,7 @@ export class CSSGenerator {
       = VARIANT_SELECTORS[variant] !== undefined
         || PREFIX_VARIANTS[variant] !== undefined
         || DIRECTION_VARIANTS[variant] !== undefined
-        || NOT_VARIANT_SELECTORS[variant] !== undefined
+        || (variant.startsWith('not-') && this.isNegationResolvable(variant.slice(4)))
         || this.screenBreakpoints.has(variant)
         || (variant.startsWith('max-') && this.screenBreakpoints.has(variant.slice(4)))
         || (variant.startsWith('@') && this.screenBreakpoints.has(variant.slice(1)))
@@ -2604,6 +2686,49 @@ export class CSSGenerator {
         || ['print', 'motion-safe', 'motion-reduce', 'contrast-more', 'contrast-less', 'landscape', 'portrait', 'forced-colors'].includes(variant)
     this.variantHandledCache.set(variant, known)
     return known
+  }
+
+  /**
+   * The at-rule condition a variant contributes, for `not-*` to negate.
+   *
+   * Breakpoints and the media-strategy dark mode are instance state, which is
+   * why this is a method rather than a table.
+   */
+  private negatableAtRule(token: string): { media?: string, supports?: string } | undefined {
+    if (!token)
+      return undefined
+
+    const preference = PREFERENCE_MEDIA_VARIANTS[token]
+    if (preference !== undefined)
+      return { media: preference }
+
+    const feature = MEDIA_FEATURE_VARIANTS[token]
+    if (feature !== undefined)
+      return { media: feature }
+
+    const breakpoint = this.screenBreakpoints.get(token)
+    if (breakpoint !== undefined)
+      return { media: `(min-width: ${breakpoint})` }
+
+    if (this.darkStrategy === 'media' && (token === 'dark' || token === 'light'))
+      return { media: `(prefers-color-scheme: ${token})` }
+
+    if (token.startsWith('supports-')) {
+      const value = token.slice(9)
+      return value ? { supports: supportsCondition(value) } : undefined
+    }
+
+    return undefined
+  }
+
+  /**
+   * Whether `not-<token>` resolves to anything at all. A negation we cannot
+   * resolve has to drop the rule: emitting `.not-bogus\:flex` unconditionally
+   * would turn a typo into an always-on utility.
+   */
+  private isNegationResolvable(token: string): boolean {
+    return negatableVariantSelector(token) !== undefined
+      || this.negatableAtRule(token) !== undefined
   }
 
   private addRule(parsed: ParsedClass, properties: Record<string, string>, childSelector?: string, pseudoElement?: string, defaults?: boolean): void {
@@ -2755,13 +2880,14 @@ export class CSSGenerator {
         continue
       }
 
-      // Handle not-* variants: not-first, not-last, etc.
+      // not-* negates whatever the inner variant matches. A not-* whose
+      // inner variant contributes an at-rule instead (not-print, not-md)
+      // resolves to no selector here and is handled by getMediaQuery.
       if (variant.charCodeAt(0) === 110 && variant.startsWith('not-')) { // 'n' = 110
         if (this.variantEnabled.not) {
-          const notSelector = NOT_VARIANT_SELECTORS[variant]
-          if (notSelector) {
-            selector += notSelector
-          }
+          const inner = negatableVariantSelector(variant.slice(4))
+          if (inner !== undefined)
+            selector += `:not(${inner})`
         }
         continue
       }
@@ -2960,6 +3086,22 @@ export class CSSGenerator {
         continue
       }
 
+      // not-* over an at-rule variant negates the condition rather than the
+      // selector: not-md applies at every width BELOW md, not-print
+      // everywhere but print, not-supports-[…] where the feature is absent.
+      if (firstChar === 110 && variant.startsWith('not-')) { // 'n' = 110
+        if (this.variantEnabled.not) {
+          const negated = this.negatableAtRule(variant.slice(4))
+          if (negated !== undefined) {
+            if (negated.supports !== undefined)
+              supportsQueries.push(`@supports not ${negated.supports}`)
+            else
+              mediaConditions.push(`not ${negated.media}`)
+          }
+        }
+        continue
+      }
+
       // dark:/light: under the media strategy become color-scheme queries
       // instead of class prefixes.
       if (this.darkStrategy === 'media' && (variant === 'dark' || variant === 'light')) {
@@ -3008,55 +3150,17 @@ export class CSSGenerator {
       }
 
       // Media preference variants
-      switch (variant) {
-        case 'print':
-          if (this.variantEnabled.print) mediaConditions.push('print')
-          break
-        case 'motion-safe':
-          if (this.variantEnabled['motion-safe']) mediaConditions.push('(prefers-reduced-motion: no-preference)')
-          break
-        case 'motion-reduce':
-          if (this.variantEnabled['motion-reduce']) mediaConditions.push('(prefers-reduced-motion: reduce)')
-          break
-        case 'contrast-more':
-          if (this.variantEnabled['contrast-more']) mediaConditions.push('(prefers-contrast: more)')
-          break
-        case 'contrast-less':
-          if (this.variantEnabled['contrast-less']) mediaConditions.push('(prefers-contrast: less)')
-          break
-        case 'landscape':
-          if (this.variantEnabled.landscape) mediaConditions.push('(orientation: landscape)')
-          break
-        case 'portrait':
-          if (this.variantEnabled.portrait) mediaConditions.push('(orientation: portrait)')
-          break
-        case 'forced-colors':
-          if (this.variantEnabled['forced-colors']) mediaConditions.push('(forced-colors: active)')
-          break
+      const preference = PREFERENCE_MEDIA_VARIANTS[variant]
+      if (preference !== undefined) {
+        if (this.variantEnabled[variant])
+          mediaConditions.push(preference)
+        continue
       }
 
       // Handle supports-* variant: supports-[display:grid] -> @supports (display: grid)
       if (variant.charCodeAt(0) === 115 && variant.startsWith('supports-')) { // 's' = 115
-        if (this.variantEnabled.supports) {
-          const supportsValue = variant.slice(9)
-          let supportsQuery: string
-          if (supportsValue.charCodeAt(0) === 91 && supportsValue.charCodeAt(supportsValue.length - 1) === 93) {
-            const inner = supportsValue.slice(1, -1).replace(/_/g, ' ')
-            const colonIdx = inner.indexOf(':')
-            if (colonIdx !== -1) {
-              const prop = inner.slice(0, colonIdx).trim()
-              const val = inner.slice(colonIdx + 1).trim()
-              supportsQuery = `@supports (${prop}: ${val})`
-            }
-            else {
-              supportsQuery = `@supports (${inner})`
-            }
-          }
-          else {
-            supportsQuery = `@supports (${supportsValue})`
-          }
-          supportsQueries.push(supportsQuery)
-        }
+        if (this.variantEnabled.supports)
+          supportsQueries.push(`@supports ${supportsCondition(variant.slice(9))}`)
       }
     }
 
