@@ -1,4 +1,4 @@
-import type { CSSRule, CssConfig, ParsedClass } from './types'
+import type { CSSRule, CssConfig, ParsedClass, UtilityRuleResult } from './types'
 import type { UtilityRule } from './rules'
 import { minifyBlock } from '../optimize'
 import { parseClass } from './parser'
@@ -2439,7 +2439,7 @@ export class CSSGenerator {
       if (result) {
         // Handle both old format (just properties) and new format (object with properties and childSelector/pseudoElement)
         if ('properties' in result && typeof result.properties === 'object') {
-          this.addRule(parsed, result.properties, result.childSelector, result.pseudoElement)
+          this.addRule(parsed, result.properties, result.childSelector, result.pseudoElement, (result as UtilityRuleResult).defaults)
         }
         else {
           this.addRule(parsed, result as Record<string, string>)
@@ -2483,7 +2483,7 @@ export class CSSGenerator {
     return known
   }
 
-  private addRule(parsed: ParsedClass, properties: Record<string, string>, childSelector?: string, pseudoElement?: string): void {
+  private addRule(parsed: ParsedClass, properties: Record<string, string>, childSelector?: string, pseudoElement?: string, defaults?: boolean): void {
     for (let i = 0; i < parsed.variants.length; i++) {
       if (!this.isVariantHandled(parsed.variants[i]))
         return
@@ -2510,6 +2510,12 @@ export class CSSGenerator {
       if (childSelector) {
         selector += ` ${childSelector}`
       }
+      // A rule of defaults (an icon's 1em box) at zero specificity: pages
+      // ship their own stylesheets, and one arriving later re-declared
+      // `.i-lucide-bell { width: 1em }` after `.w-5`, shrinking every sized
+      // icon on the page. A pseudo-element cannot sit inside :where().
+      if (defaults && !selector.includes('::'))
+        selector = `:where(${selector})`
       this.selectorCache.set(cacheKey, selector)
     }
 

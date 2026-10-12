@@ -239,6 +239,11 @@ export interface UtilityRuleResult {
   properties: Record<string, string>
   childSelector?: string
   pseudoElement?: string // e.g., '::placeholder' — appended to selector without space
+  /**
+   * Emit the rule under `:where()`, at zero specificity, so a sizing or colour
+   * utility on the same element wins whatever order the stylesheets arrive in.
+   */
+  defaults?: boolean
 }
 
 export type CustomRule = [RegExp, (_match: RegExpMatchArray) => Record<string, string> | undefined]

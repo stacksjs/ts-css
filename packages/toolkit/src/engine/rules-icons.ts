@@ -186,15 +186,20 @@ export const iconRule: UtilityRule = (parsed: ParsedClass, _config: CssConfig) =
   // Antfu's pattern — every property is set so the class is fully self-
   // contained (no need for a sidecar `.icon { ... }` reset rule). Both
   // `mask` and `-webkit-mask` for Safari < 17.
+  // At zero specificity (`defaults`): `h-5 w-5 i-lucide-bell` is a 20px
+  // icon whichever stylesheet declared which rule last.
   return {
-    'display': 'inline-block',
-    'width': '1em',
-    'height': '1em',
-    'background-color': 'currentColor',
-    '-webkit-mask': `${url} no-repeat`,
-    'mask': `${url} no-repeat`,
-    '-webkit-mask-size': '100% 100%',
-    'mask-size': '100% 100%',
-    'vertical-align': '-0.125em',
+    defaults: true,
+    properties: {
+      'display': 'inline-block',
+      'width': '1em',
+      'height': '1em',
+      'background-color': 'currentColor',
+      '-webkit-mask': `${url} no-repeat`,
+      'mask': `${url} no-repeat`,
+      '-webkit-mask-size': '100% 100%',
+      'mask-size': '100% 100%',
+      'vertical-align': '-0.125em',
+    },
   }
 }
