@@ -115,6 +115,129 @@ const GRADIENT_DIRECTIONS: Record<string, string> = {
 }
 
 /**
+ * Gradient colour-space interpolation, and the conic start angle.
+ *
+ * `bg-linear-to-r/oklch` interpolates in OKLCH instead of sRGB, which is what
+ * stops a blue-to-yellow gradient passing through muddy grey. The modifier is
+ * either a colour space (`/oklch`, `/srgb`) or a hue-interpolation keyword
+ * (`/shorter`, `/longer`, `/increasing`, `/decreasing`), and a hue keyword
+ * implies OKLCH.
+ *
+ * This rule claims only what the existing gradient handling does not: a
+ * class carrying a `/modifier`, plus `bg-conic-<angle>`. Everything without a
+ * modifier keeps flowing through the static map and backgroundImageRule
+ * untouched.
+ *
+ * ONE DELIBERATE DIVERGENCE from Tailwind. Tailwind interpolates in oklab by
+ * DEFAULT, emitting the plain prelude and then overriding it inside an
+ * `@supports (background-image: linear-gradient(in lab, red, red))` block so
+ * older browsers still get a gradient. A rule here returns a flat property
+ * map and cannot express a nested at-rule, so an unguarded `in oklab` would
+ * break those browsers outright. Interpolation therefore stays opt-in: no
+ * modifier means sRGB, exactly as before.
+ */
+const GRADIENT_COLOR_SPACES = new Set([
+  'srgb',
+  'srgb-linear',
+  'oklab',
+  'oklch',
+  'lab',
+  'lch',
+  'hsl',
+  'hwb',
+  'xyz',
+  'xyz-d50',
+  'xyz-d65',
+  'display-p3',
+  'a98-rgb',
+  'prophoto-rgb',
+  'rec2020',
+])
+
+const GRADIENT_HUE_KEYWORDS = new Set(['shorter', 'longer', 'increasing', 'decreasing'])
+
+function gradientInterpolation(modifier: string): string | undefined {
+  if (GRADIENT_COLOR_SPACES.has(modifier))
+    return `in ${modifier}`
+  // A hue keyword only means something in a polar space, so it implies OKLCH.
+  if (GRADIENT_HUE_KEYWORDS.has(modifier))
+    return `in oklch ${modifier} hue`
+  return undefined
+}
+
+export const gradientInterpolationRule: UtilityRule = (parsed) => {
+  if (parsed.utility !== 'bg' || !parsed.value || parsed.arbitrary || parsed.typeHint)
+    return undefined
+  if (parsed.value.includes('('))
+    return undefined
+
+  const slashIdx = parsed.value.lastIndexOf('/')
+  const token = slashIdx === -1 ? parsed.value : parsed.value.slice(0, slashIdx)
+  const modifier = slashIdx === -1 ? undefined : parsed.value.slice(slashIdx + 1)
+
+  let interpolation: string | undefined
+  if (modifier !== undefined) {
+    interpolation = gradientInterpolation(modifier)
+    // An unrecognised modifier is not a utility. Returning undefined here
+    // rather than ignoring the modifier keeps `bg-linear-to-r/bogus` from
+    // silently compiling to a plain sRGB gradient.
+    if (interpolation === undefined)
+      return undefined
+  }
+
+  const negative = token.charCodeAt(0) === 45 // '-'
+  const body = negative ? token.slice(1) : token
+
+  let fn: string
+  let position = ''
+
+  if (body === 'conic') {
+    fn = 'conic-gradient'
+  }
+  else if (body === 'radial') {
+    fn = 'radial-gradient'
+  }
+  else if (body.startsWith('conic-')) {
+    const angle = body.slice(6)
+    if (!/^\d+(?:\.\d+)?$/.test(angle))
+      return undefined
+    fn = 'conic-gradient'
+    position = `from ${negative ? '-' : ''}${angle}deg`
+  }
+  else if (body.startsWith('linear-') || body.startsWith('gradient-')) {
+    const rest = body.slice(body.indexOf('-') + 1)
+    fn = 'linear-gradient'
+    if (rest.startsWith('to-')) {
+      const direction = GRADIENT_DIRECTIONS[rest.slice(3)]
+      if (direction === undefined)
+        return undefined
+      position = direction
+    }
+    else if (/^\d+(?:\.\d+)?$/.test(rest)) {
+      position = `${negative ? '-' : ''}${rest}deg`
+    }
+    else {
+      return undefined
+    }
+  }
+  else {
+    return undefined
+  }
+
+  // Nothing new to say without either an angle or an interpolation: leave it
+  // to the existing handling.
+  if (!position && interpolation === undefined)
+    return undefined
+
+  const prelude = [position, interpolation].filter(Boolean).join(' ')
+  return {
+    'background-image': prelude
+      ? `${fn}(${prelude}, var(--tc-gradient-stops))`
+      : `${fn}(var(--tc-gradient-stops))`,
+  }
+}
+
+/**
  * Linear gradients. `bg-linear-*` is Tailwind v4's name for `bg-gradient-*`;
  * both spellings are accepted so v3 markup keeps working.
  *
@@ -592,6 +715,7 @@ export const maskRule: UtilityRule = (parsed) => {
 export const effectsRules: UtilityRule[] = [
   backgroundAttachmentRule,
   backgroundClipRule,
+  gradientInterpolationRule,
   backgroundImageRule,
   backgroundOriginRule,
   backgroundPositionRule,
