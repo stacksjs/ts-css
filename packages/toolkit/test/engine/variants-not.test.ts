@@ -35,7 +35,7 @@ describe('Functional not-* variants', () => {
     const cases: [string, string][] = [
       ['not-focus:flex', ':not(:focus)'],
       ['not-hover:opacity-50', ':not(:hover)'],
-      ['not-open:flex', ':not([open])'],
+      ['not-open:flex', ':not(:is([open], :popover-open, :open))'],
       ['not-in-range:flex', ':not(:in-range)'],
       ['not-nth-3:flex', ':not(:nth-child(3))'],
       ['not-has-[a]:flex', ':not(:has(a))'],

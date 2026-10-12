@@ -77,7 +77,9 @@ describe('Pseudo-Class and Pseudo-Element Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('closed:hidden')
       const css = gen.toCSS(false)
-      expect(css).toContain(':not([open])')
+      // `closed` negates exactly what `open` matches, so it tracks the
+      // three-way open definition rather than just the [open] attribute.
+      expect(css).toContain(':not(:is([open], :popover-open, :open))')
     })
 
     it('should handle empty variant', () => {
@@ -307,5 +309,54 @@ describe('Variants the parser accepted but the generator dropped', () => {
     const css = gen.toCSS(false)
     expect(css).toContain(':in-range')
     expect(css).not.toContain(':where(')
+  })
+})
+
+describe('the open variant covers all three open states', () => {
+  // Matching only `[open]` caught <details> and <dialog> but missed popovers
+  // and open <select>s entirely. v4 uses :is() over all three.
+  it('should match the attribute, the popover state and :open', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('open:flex')
+    expect(gen.toCSS(false, true)).toBe('.open\\:flex:is([open], :popover-open, :open){display:flex}')
+  })
+
+  it('should keep the specificity of the class itself', () => {
+    // :is() takes the specificity of its most specific argument — an
+    // attribute selector and two pseudo-classes are all (0,1,0) — so the
+    // rule stays at (0,2,0) overall rather than climbing.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('open:flex')
+    expect(gen.toCSS(false, true)).toContain(':is(')
+  })
+
+  it('should propagate to the derived variants', () => {
+    // not-open and in-open both resolve their selector from the `open`
+    // entry, so the one definition drives all three.
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generateBatch(['not-open:flex', 'in-open:flex', 'closed:hidden'])
+    const out = gen.toCSS(false, true)
+    expect(out).toContain(':not(:is([open], :popover-open, :open))')
+    expect(out).toContain(':where(:is([open], :popover-open, :open))')
+  })
+
+  it('should keep closed as the exact negation of open', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('closed:hidden')
+    expect(gen.toCSS(false, true)).toBe('.closed\\:hidden:not(:is([open], :popover-open, :open)){display:none}')
+  })
+
+  it('should stack with other variants', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('open:hover:underline')
+    expect(gen.toCSS(false, true)).toContain(':is([open], :popover-open, :open):hover')
+  })
+
+  it('should work under a breakpoint', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate('md:open:flex')
+    const out = gen.toCSS(false, true)
+    expect(out).toContain('@media (min-width: 768px)')
+    expect(out).toContain(':is([open], :popover-open, :open)')
   })
 })

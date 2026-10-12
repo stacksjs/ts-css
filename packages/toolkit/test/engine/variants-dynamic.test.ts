@@ -205,7 +205,7 @@ describe('in-* ancestor variants', () => {
       ['in-checked:flex', ':where(:checked)'],
       ['in-disabled:flex', ':where(:disabled)'],
       ['in-first:flex', ':where(:first-child)'],
-      ['in-open:flex', ':where([open])'],
+      ['in-open:flex', ':where(:is([open], :popover-open, :open))'],
       ['in-aria-expanded:flex', ':where([aria-expanded="true"])'],
       ['in-aria-[sort=asc]:flex', ':where([aria-sort=asc])'],
       ['in-data-open:flex', ':where([data-open])'],

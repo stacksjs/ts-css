@@ -1477,8 +1477,17 @@ const VARIANT_SELECTORS: Record<string, string> = {
   'out-of-range': ':out-of-range',
   'placeholder-shown': ':placeholder-shown',
   // Additional state pseudo-classes
-  'open': '[open]',
-  'closed': ':not([open])',
+  // `open` covers all three ways an element can be open, which is what
+  // Tailwind v4 does: the [open] attribute on <details>/<dialog>, the
+  // :popover-open state, and :open for <select> and friends. Matching only
+  // [open] missed popovers and open selects entirely.
+  //
+  // `not-open` and `in-open` derive their selectors from this entry, so all
+  // three variants follow from the one definition.
+  'open': ':is([open], :popover-open, :open)',
+  // `closed` is this engine's own addition — Tailwind has no such variant —
+  // and negates exactly what `open` matches.
+  'closed': ':not(:is([open], :popover-open, :open))',
   'empty': ':empty',
   'enabled': ':enabled',
   'only': ':only-child',
