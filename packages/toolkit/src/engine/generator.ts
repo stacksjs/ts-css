@@ -801,6 +801,11 @@ const OVERFLOW_MAP: Record<string, Record<string, string>> = {
   'overflow-auto': { overflow: 'auto' },
   'overflow-hidden': { overflow: 'hidden' },
   'overflow-clip': { overflow: 'clip' },
+  // The odd one out: an `overflow-` class that sets text-overflow, not
+  // overflow. It is Tailwind's legacy alias for `text-ellipsis` and is
+  // still a live class in v4, so it belongs here rather than beside the
+  // text-* utilities.
+  'overflow-ellipsis': { 'text-overflow': 'ellipsis' },
   'overflow-visible': { overflow: 'visible' },
   'overflow-scroll': { overflow: 'scroll' },
   'overflow-x-auto': { 'overflow-x': 'auto' },

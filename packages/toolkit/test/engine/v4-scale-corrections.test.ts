@@ -83,3 +83,23 @@ describe('ease-initial', () => {
     expect(css('ease-in-out')).toContain('cubic-bezier(0.4, 0, 0.2, 1)')
   })
 })
+
+describe('overflow-ellipsis', () => {
+  // The odd one out: an `overflow-` class that sets text-overflow rather than
+  // overflow. It is Tailwind's legacy alias for `text-ellipsis` and is still
+  // a live class in v4, so rejecting it was wrong.
+  it('should set text-overflow, not overflow', () => {
+    expect(css('overflow-ellipsis')).toBe('.overflow-ellipsis{text-overflow:ellipsis}')
+  })
+
+  it('should agree with text-ellipsis', () => {
+    expect(css('overflow-ellipsis')).toContain('text-overflow:ellipsis')
+    expect(css('text-ellipsis')).toContain('text-overflow:ellipsis')
+  })
+
+  it('should not disturb the real overflow utilities', () => {
+    expect(css('overflow-clip')).toBe('.overflow-clip{overflow:clip}')
+    expect(css('overflow-hidden')).toBe('.overflow-hidden{overflow:hidden}')
+    expect(css('overflow-x-clip')).toContain('overflow-x:clip')
+  })
+})
