@@ -55,7 +55,7 @@ const MASK_REPEAT: Record<string, string> = {
   'no-repeat': 'no-repeat',
 }
 
-export const maskPresetRule: UtilityRule = (parsed) => {
+export const maskPresetRule: UtilityRule = (parsed): Record<string, string> | undefined => {
   if (parsed.utility !== 'mask' || !parsed.value)
     return undefined
 

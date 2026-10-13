@@ -517,7 +517,7 @@ function textShadowWithColor(offsets: string): string {
   return `${offsets} var(--tc-text-shadow-color, rgba(0, 0, 0, 0.05))`
 }
 
-export const textShadowRule: UtilityRule = (parsed, config) => {
+export const textShadowRule: UtilityRule = (parsed, config): Record<string, string> | undefined => {
   if (parsed.utility !== 'text-shadow')
     return undefined
 

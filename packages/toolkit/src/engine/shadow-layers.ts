@@ -29,6 +29,6 @@ const LAYERS = [
   'shadow',
 ]
 
-export const BOX_SHADOW_LAYERS = LAYERS
+export const BOX_SHADOW_LAYERS: string = LAYERS
   .map(layer => `var(--tc-${layer}, ${SHADOW_NONE})`)
   .join(', ')
