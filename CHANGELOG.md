@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.12...v0.3.13)
+
+## ✨ Features
+
+- **engine**: colorVariables re-tints a palette through CSS variables ([de69552](https://github.com/stacksjs/ts-css/commit/de69552)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.13 ([1c04f48](https://github.com/stacksjs/ts-css/commit/1c04f48)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.11...v0.3.12)
 
 ## 🐛 Bug Fixes
