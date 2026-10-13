@@ -1876,23 +1876,36 @@ function resolveSkipStaticShadow(boxShadow: Record<string, string>): boolean {
   return skip
 }
 
-function resolveScreenBreakpoints(screens: Record<string, string>): Map<string, string> {
-  const cached = screenBreakpointsCache.get(screens)
+function resolveScreenBreakpoints(screens?: Record<string, string>): Map<string, string> {
+  const source = screens ?? defaultConfig.theme.screens
+  const cached = screenBreakpointsCache.get(source)
   if (cached)
     return cached
 
-  const result = new Map(Object.entries(screens))
-  screenBreakpointsCache.set(screens, result)
+  const result = new Map(Object.entries(source))
+  screenBreakpointsCache.set(source, result)
   return result
 }
 
-function resolveContainerBreakpoints(containers: Record<string, string>): Map<string, string> {
-  const cached = containerBreakpointsCache.get(containers)
+/*
+ * `containers` is newer than this engine's config surface: it arrived with the
+ * container-query scale, so every config authored before then has a `theme`
+ * without the key. The type says it is required, which is why nothing caught
+ * this, but a caller that builds a CssConfig by hand — stx's editor package
+ * does — hands us `undefined` and `Object.entries` throws on construction,
+ * taking the whole generator down rather than just the `@sm:` variants.
+ *
+ * Falling back to the shipped scale rather than to `{}` keeps container
+ * variants working for those configs instead of silently emitting nothing.
+ */
+function resolveContainerBreakpoints(containers?: Record<string, string>): Map<string, string> {
+  const source = containers ?? defaultConfig.theme.containers
+  const cached = containerBreakpointsCache.get(source)
   if (cached)
     return cached
 
-  const result = new Map(Object.entries(containers))
-  containerBreakpointsCache.set(containers, result)
+  const result = new Map(Object.entries(source))
+  containerBreakpointsCache.set(source, result)
   return result
 }
 
