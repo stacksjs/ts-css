@@ -119,6 +119,16 @@ export interface CssConfig {
   /** Generate :root CSS variables from theme colors (e.g., --monokai-bg: #2d2a2e) */
   cssVariables?: boolean
   /**
+   * Palettes whose utilities read a CSS variable that falls back to the
+   * theme's value: with `['slate']`, `bg-slate-900` is
+   * `background-color: var(--color-slate-900, <slate-900>)`. Nothing changes
+   * until a scope sets the variable, so a part of a site can re-tint a whole
+   * palette in one place (`.dark .phone { --color-slate-900: #1c1c1e }`)
+   * rather than overriding each utility. Opacity variants mix the variable
+   * (`color-mix(in srgb, var(...) 40%, transparent)`).
+   */
+  colorVariables?: string[]
+  /**
    * Modules that declare styles through the `css.create()` API. They are
    * evaluated at build time and their atomic CSS is appended to the output.
    *

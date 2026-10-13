@@ -1167,3 +1167,32 @@ describe('Opacity modifier on var()-based theme colors (issue #16)', () => {
     expect(gen.toCSS(false)).toContain('color: var(--success);')
   })
 })
+
+describe('colorVariables: a palette read through CSS variables', () => {
+  const slate900 = 'oklch(20.8% 0.042 265.755)'
+  const compile = (classes: string[], colorVariables?: string[]) => {
+    const gen = new CSSGenerator({ ...defaultConfig, colorVariables })
+    for (const cls of classes) gen.generate(cls)
+    return gen.toCSS(false)
+  }
+
+  it('writes a listed palette as its variable, falling back to the theme value', () => {
+    const css = compile(['bg-slate-900', 'dark:border-slate-800', 'text-slate-500', 'divide-slate-800', 'from-slate-900', 'border-t-slate-700'], ['slate'])
+    expect(css).toContain(`background-color: var(--color-slate-900, ${slate900});`)
+    expect(css).toContain('border-color: var(--color-slate-800, ')
+    expect(css).toContain('color: var(--color-slate-500, ')
+    expect(css).toContain('var(--color-slate-700, ')
+    expect(css).toMatch(/--tc-gradient-from: var\(--color-slate-900, /)
+  })
+
+  it('mixes the variable for an opacity variant, so a re-tint carries its alpha', () => {
+    const css = compile(['bg-slate-900/40'], ['slate'])
+    expect(css).toContain(`background-color: color-mix(in srgb, var(--color-slate-900, ${slate900}) 40%, transparent);`)
+  })
+
+  it('leaves other palettes, and every palette without the option, as plain values', () => {
+    expect(compile(['bg-blue-500'], ['slate'])).toContain('background-color: oklch(62.3% 0.214 259.815);')
+    expect(compile(['bg-slate-900'])).toContain(`background-color: ${slate900};`)
+    expect(compile(['bg-slate-900'])).not.toContain('var(--color-slate')
+  })
+})

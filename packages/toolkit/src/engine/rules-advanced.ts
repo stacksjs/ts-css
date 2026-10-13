@@ -1,6 +1,6 @@
 import type { UtilityRule } from './rules'
 import { colorModifierSlashIndex } from './color-modifier'
-import { resolveColorValue, resolveSizeToken } from './rules'
+import { resolveColorValue, resolveSizeToken, themeColorValue } from './rules'
 import { BOX_SHADOW_LAYERS } from './shadow-layers'
 
 const MIN_MAX_SIZING_MINMAXMAP: Record<string, string> = {
@@ -444,12 +444,12 @@ export const gradientStopsRule: UtilityRule = (parsed, config) => {
     // First check if it's a direct color value (e.g., ocean-blue, black, white)
     const directColor = config.theme.colors[lookup]
     if (typeof directColor === 'string') {
-      return applyAlpha(directColor)
+      return applyAlpha(themeColorValue(lookup, directColor, lookup, config.colorVariables))
     }
 
     // Nested color object referenced by its bare name → `DEFAULT` shade.
     if (typeof directColor === 'object' && directColor !== null && typeof directColor.DEFAULT === 'string') {
-      return applyAlpha(directColor.DEFAULT)
+      return applyAlpha(themeColorValue(lookup, directColor.DEFAULT, lookup, config.colorVariables))
     }
 
     // Then check if it's a color-shade combination (e.g., sky-500, blue-gray-200)
@@ -459,7 +459,7 @@ export const gradientStopsRule: UtilityRule = (parsed, config) => {
       const shade = parts[parts.length - 1]
       const colorValue = config.theme.colors[colorName]
       if (typeof colorValue === 'object' && colorValue[shade]) {
-        return applyAlpha(colorValue[shade])
+        return applyAlpha(themeColorValue(lookup, colorValue[shade], colorName, config.colorVariables))
       }
     }
 

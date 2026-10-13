@@ -405,6 +405,7 @@ export const sizingRule: UtilityRule = (parsed, config) => {
 // Flat color cache: "blue-500" -> "#3b82f6" (populated on first access per config)
 let flatColorCache: Map<string, string> | null = null
 let flatColorCacheConfig: any = null
+let flatColorCacheVariables: readonly string[] | undefined
 
 // Pre-computed color property map (avoid object creation)
 const COLOR_PROPS: Record<string, string> = {
@@ -460,11 +461,19 @@ const SPECIAL_COLORS: Record<string, string> = {
 }
 
 // Build flat color cache from theme colors
-function buildFlatColorCache(colors: Record<string, any>): Map<string, string> {
+/**
+ * A theme colour as a utility writes it: the value itself, or, for a palette
+ * in `colorVariables`, a variable named after the colour that falls back to it.
+ */
+export function themeColorValue(key: string, value: string, palette: string, variables: readonly string[] | undefined): string {
+  return variables?.includes(palette) ? `var(--color-${key}, ${value})` : value
+}
+
+function buildFlatColorCache(colors: Record<string, any>, variables?: readonly string[]): Map<string, string> {
   const cache = new Map<string, string>()
   for (const [colorName, colorValue] of Object.entries(colors)) {
     if (typeof colorValue === 'string') {
-      cache.set(colorName, colorValue)
+      cache.set(colorName, themeColorValue(colorName, colorValue, colorName, variables))
     }
     else if (typeof colorValue === 'object' && colorValue !== null) {
       for (const [shade, shadeValue] of Object.entries(colorValue)) {
@@ -472,7 +481,8 @@ function buildFlatColorCache(colors: Record<string, any>): Map<string, string> {
           // The `DEFAULT` shade maps to the bare color name (Tailwind convention),
           // so `brand: { DEFAULT: ... }` makes `bg-brand` resolve to that value
           // rather than silently dropping.
-          cache.set(shade === 'DEFAULT' ? colorName : `${colorName}-${shade}`, shadeValue)
+          const key = shade === 'DEFAULT' ? colorName : `${colorName}-${shade}`
+          cache.set(key, themeColorValue(key, shadeValue, colorName, variables))
         }
       }
     }
@@ -502,9 +512,10 @@ export const colorRule: UtilityRule = (parsed, config) => {
   }
 
   // Build/update flat color cache if needed
-  if (flatColorCache === null || flatColorCacheConfig !== config.theme.colors) {
-    flatColorCache = buildFlatColorCache(config.theme.colors)
+  if (flatColorCache === null || flatColorCacheConfig !== config.theme.colors || flatColorCacheVariables !== config.colorVariables) {
+    flatColorCache = buildFlatColorCache(config.theme.colors, config.colorVariables)
     flatColorCacheConfig = config.theme.colors
+    flatColorCacheVariables = config.colorVariables
   }
 
   // Fast path: Most common case - direct lookup in flat cache (no string parsing)
@@ -642,7 +653,7 @@ export function applyOpacity(color: string, opacity: number): string {
  */
 export function resolveColorValue(
   value: string,
-  config: { theme: { colors: Record<string, any> } },
+  config: { theme: { colors: Record<string, any> }, colorVariables?: string[] },
   modifierArbitrary = false,
 ): string | undefined {
   const slashIdx = colorModifierSlashIndex(value)
@@ -672,14 +683,17 @@ export function resolveColorValue(
   if (special[colorKey]) return opacity !== undefined ? applyOpacity(special[colorKey], opacity) : special[colorKey]
 
   // Direct color name (white, black, etc.)
-  const directColor = config.theme.colors[colorKey]
+  const variables = config.colorVariables
+  const rawDirect = config.theme.colors[colorKey]
+  const directColor = typeof rawDirect === 'string' ? themeColorValue(colorKey, rawDirect, colorKey, variables) : rawDirect
   if (typeof directColor === 'string') return opacity !== undefined ? applyOpacity(directColor, opacity) : directColor
 
   // Nested color object referenced by its bare name resolves to its `DEFAULT`
   // shade (Tailwind convention): `brand: { DEFAULT: ... }` makes `ring-brand`,
   // `accent-brand`, etc. resolve to that value.
   if (typeof directColor === 'object' && directColor !== null && typeof directColor.DEFAULT === 'string') {
-    return opacity !== undefined ? applyOpacity(directColor.DEFAULT, opacity) : directColor.DEFAULT
+    const color = themeColorValue(colorKey, directColor.DEFAULT, colorKey, variables)
+    return opacity !== undefined ? applyOpacity(color, opacity) : color
   }
 
   // Color with shade: blue-500, gray-300
@@ -689,7 +703,8 @@ export function resolveColorValue(
     const colorName = parts.slice(0, -1).join('-')
     const colorValue = config.theme.colors[colorName]
     if (typeof colorValue === 'object' && colorValue[shade]) {
-      return opacity !== undefined ? applyOpacity(colorValue[shade], opacity) : colorValue[shade]
+      const color = themeColorValue(colorKey, colorValue[shade], colorName, variables)
+      return opacity !== undefined ? applyOpacity(color, opacity) : color
     }
   }
 
@@ -728,9 +743,10 @@ export const placeholderColorRule: UtilityRule = (parsed, config) => {
     return undefined
 
   // Build/update flat color cache if needed
-  if (flatColorCache === null || flatColorCacheConfig !== config.theme.colors) {
-    flatColorCache = buildFlatColorCache(config.theme.colors)
+  if (flatColorCache === null || flatColorCacheConfig !== config.theme.colors || flatColorCacheVariables !== config.colorVariables) {
+    flatColorCache = buildFlatColorCache(config.theme.colors, config.colorVariables)
     flatColorCacheConfig = config.theme.colors
+    flatColorCacheVariables = config.colorVariables
   }
 
   const value = parsed.value
@@ -1063,10 +1079,11 @@ export const borderSideWidthRule: UtilityRule = (parsed, config) => {
       const entry = config.theme.colors[colorName]
       if (entry && typeof entry === 'object' && entry[shade]) {
         const prop = colorProp
+        const color = themeColorValue(parsed.value, entry[shade], colorName, config.colorVariables)
         if (Array.isArray(prop)) {
-          return prop.reduce((acc, p) => ({ ...acc, [p]: entry[shade] }), {} as Record<string, string>)
+          return prop.reduce((acc, p) => ({ ...acc, [p]: color }), {} as Record<string, string>)
         }
-        return { [prop]: entry[shade] }
+        return { [prop]: color }
       }
     }
     // Direct color keyword (white, black, transparent, currentColor)

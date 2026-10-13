@@ -1,3 +1,4 @@
+import { themeColorValue } from './rules'
 import type { UtilityRule } from './rules'
 import { fractionToPercent } from './format'
 
@@ -205,19 +206,19 @@ export const columnRuleRule: UtilityRule = (parsed, config) => {
       const [colorName, shade] = parts
       const colorValue = config.theme.colors[colorName]
       if (typeof colorValue === 'object' && colorValue[shade]) {
-        return { 'column-rule-color': colorValue[shade] } as Record<string, string>
+        return { 'column-rule-color': themeColorValue(parsed.value, colorValue[shade], colorName, config.colorVariables) } as Record<string, string>
       }
     }
 
     // Direct color
     const directColor = config.theme.colors[parsed.value]
     if (typeof directColor === 'string') {
-      return { 'column-rule-color': directColor } as Record<string, string>
+      return { 'column-rule-color': themeColorValue(parsed.value, directColor, parsed.value, config.colorVariables) } as Record<string, string>
     }
 
     // Nested color object referenced by its bare name → `DEFAULT` shade.
     if (typeof directColor === 'object' && directColor !== null && typeof directColor.DEFAULT === 'string') {
-      return { 'column-rule-color': directColor.DEFAULT } as Record<string, string>
+      return { 'column-rule-color': themeColorValue(parsed.value, directColor.DEFAULT, parsed.value, config.colorVariables) } as Record<string, string>
     }
 
     // Style

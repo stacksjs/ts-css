@@ -1,5 +1,5 @@
 import type { UtilityRule } from './rules'
-import { resolveColorValue } from './rules'
+import { resolveColorValue, themeColorValue } from './rules'
 
 const FONT_STYLE_STYLES: Record<string, string> = {
   'italic': 'italic',
@@ -506,17 +506,17 @@ export const textEmphasisColorRule: UtilityRule = (parsed, config) => {
       const [colorName, shade] = parts
       const colorValue = config.theme.colors[colorName]
       if (typeof colorValue === 'object' && colorValue[shade]) {
-        return { 'text-emphasis-color': colorValue[shade] }
+        return { 'text-emphasis-color': themeColorValue(parsed.value, colorValue[shade], colorName, config.colorVariables) }
       }
     }
     const directColor = config.theme.colors[parsed.value]
     if (typeof directColor === 'string') {
-      return { 'text-emphasis-color': directColor }
+      return { 'text-emphasis-color': themeColorValue(parsed.value, directColor, parsed.value, config.colorVariables) }
     }
 
     // Nested color object referenced by its bare name → `DEFAULT` shade.
     if (typeof directColor === 'object' && directColor !== null && typeof directColor.DEFAULT === 'string') {
-      return { 'text-emphasis-color': directColor.DEFAULT }
+      return { 'text-emphasis-color': themeColorValue(parsed.value, directColor.DEFAULT, parsed.value, config.colorVariables) }
     }
   }
 }
