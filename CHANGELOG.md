@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.11...v0.3.12)
+
+## 🐛 Bug Fixes
+
+- **engine**: construct when theme.containers is absent ([99ef64a](https://github.com/stacksjs/ts-css/commit/99ef64a)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.12 ([d0741b5](https://github.com/stacksjs/ts-css/commit/d0741b5)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.10...v0.3.11)
 
 ## ✨ Features
