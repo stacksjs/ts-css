@@ -1,3 +1,53 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.10...v0.3.11)
+
+## ✨ Features
+
+- add overflow-ellipsis ([3ee117c](https://github.com/stacksjs/ts-css/commit/3ee117c)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **gradient**: add colour-space interpolation and the conic start angle ([75353c3](https://github.com/stacksjs/ts-css/commit/75353c3)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- add blur-xs, max-w-prose, transition-discrete and ease-initial ([6fc0e5f](https://github.com/stacksjs/ts-css/commit/6fc0e5f)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **alignment**: add the safe alignment utilities ([390a1ff](https://github.com/stacksjs/ts-css/commit/390a1ff)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **shadow**: support colours on drop-shadow and text-shadow ([8cdad62](https://github.com/stacksjs/ts-css/commit/8cdad62)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **shadow**: add inset-ring utilities ([ef1b4ea](https://github.com/stacksjs/ts-css/commit/ef1b4ea)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **shadow**: add inset-shadow utilities ([655b23b](https://github.com/stacksjs/ts-css/commit/655b23b)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **mask**: add radial and conic gradient masks ([e2ed6f0](https://github.com/stacksjs/ts-css/commit/e2ed6f0)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **mask**: add linear and edge gradient masks ([f8b6c81](https://github.com/stacksjs/ts-css/commit/f8b6c81)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **mask**: add the Tailwind v4 mask utility names ([8ec94c4](https://github.com/stacksjs/ts-css/commit/8ec94c4)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: make not-* compositional instead of a fixed list ([a98a29a](https://github.com/stacksjs/ts-css/commit/a98a29a)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add the starting variant for @starting-style ([f46d26e](https://github.com/stacksjs/ts-css/commit/f46d26e)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add pointer, any-pointer, inverted-colors and noscript variants ([21216fa](https://github.com/stacksjs/ts-css/commit/21216fa)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add the in-* ancestor variants ([804908d](https://github.com/stacksjs/ts-css/commit/804908d)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add the functional nth-* variant family ([ac4acf0](https://github.com/stacksjs/ts-css/commit/ac4acf0)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add the child (*:) and descendant (**:) variants ([dfc9bdb](https://github.com/stacksjs/ts-css/commit/dfc9bdb)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: add user-valid, user-invalid and inert ([45e0246](https://github.com/stacksjs/ts-css/commit/45e0246)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: support the first-letter, first-line, backdrop and details-content pseudo-elements ([552ce7c](https://github.com/stacksjs/ts-css/commit/552ce7c)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🐛 Bug Fixes
+
+- **types**: annotate the three returns that broke typecheck ([2bfe46e](https://github.com/stacksjs/ts-css/commit/2bfe46e)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: make open match all three open states ([bf157c3](https://github.com/stacksjs/ts-css/commit/bf157c3)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **drop-shadow**: adopt the v4 scale ([6d868f2](https://github.com/stacksjs/ts-css/commit/6d868f2)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **ring**: default the ring colour to currentcolor ([836bc31](https://github.com/stacksjs/ts-css/commit/836bc31)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#2563](https://github.com/stacksjs/ts-css/issues/2563))
+- **ring**: narrow the bare ring default from 3px to 1px ([cae5042](https://github.com/stacksjs/ts-css/commit/cae5042)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: give container queries their own scale and complete the grammar ([c4bc17a](https://github.com/stacksjs/ts-css/commit/c4bc17a)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **shadow**: restore shadow-2xl and shadow-inner ([ee921c6](https://github.com/stacksjs/ts-css/commit/ee921c6)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **variants**: emit CSS for in-range, out-of-range, placeholder-shown and only-of-type ([1990336](https://github.com/stacksjs/ts-css/commit/1990336)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## ♻️ Code Refactoring
+
+- **shadow**: centralise the box-shadow layer stack and make room for the inset layers ([7b7be9c](https://github.com/stacksjs/ts-css/commit/7b7be9c)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#0000](https://github.com/stacksjs/ts-css/issues/0000))
+
+## 📝 Documentation
+
+- add migration notes for the Tailwind v4 alignment ([f239036](https://github.com/stacksjs/ts-css/commit/f239036)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.11 ([e2076e2](https://github.com/stacksjs/ts-css/commit/e2076e2)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.9...v0.3.10)
 
 ## 🐛 Bug Fixes
