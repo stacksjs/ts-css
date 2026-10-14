@@ -31,5 +31,7 @@ packages/ts-css/bin/cssx-*
 packages/ts-css/bin/*.zip
 packages/toolkit/bin/ts-css
 packages/toolkit/bin/ts-css-*
+packages/toolkit/bin/cssx
+packages/toolkit/bin/cssx-*
 packages/toolkit/bin/*.zip
 pantry
