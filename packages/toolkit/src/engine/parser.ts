@@ -920,6 +920,35 @@ function configFingerprint(config?: BracketSyntaxConfig): string {
 }
 
 /**
+ * Split a class on its top-level colons, leaving colons inside `[...]` alone.
+ *
+ * A variant separator and the colon inside an arbitrary property or value look
+ * identical, so a plain `split(':')` would tear `[color:red]` in half. Both the
+ * arbitrary-property branch and the general variant/utility split need this.
+ */
+function splitTopLevelColons(className: string): string[] {
+  const parts: string[] = []
+  let current = ''
+  let bracketDepth = 0
+  for (let i = 0; i < className.length; i++) {
+    const ch = className[i]
+    if (ch === '[')
+      bracketDepth++
+    else if (ch === ']')
+      bracketDepth--
+    if (ch === ':' && bracketDepth === 0) {
+      parts.push(current)
+      current = ''
+    }
+    else {
+      current += ch
+    }
+  }
+  parts.push(current)
+  return parts
+}
+
+/**
  * Expand bracket/grouped syntax into individual class names
  * e.g., flex[col jc-center ai-center] -> ['flex-col', 'justify-center', 'items-center']
  * e.g., text[white 2rem 700] -> ['text-white', 'text-[2rem]', 'font-bold']
@@ -1365,19 +1394,43 @@ function parseClassImpl(className: string): Omit<ParsedClass, 'base'> {
     cleanClassName = className.slice(0, -1)
   }
 
-  // Check for arbitrary properties BEFORE splitting on colons: [color:red], [mask-type:luminance]
-  const arbitraryPropMatch = cleanClassName.match(/^\[([a-z-]+):(.+)\]$/)
-  if (arbitraryPropMatch) {
-    return {
-      raw: className,
-      variants: [],
-      utility: arbitraryPropMatch[1],
-      // Arbitrary properties follow the same underscore-as-space convention
-      // as arbitrary values: `[background:center_/_cover]` needs to emit
-      // `center / cover`. url() content is preserved by the helper.
-      value: convertArbitraryUnderscores(arbitraryPropMatch[2]),
-      important,
-      arbitrary: true,
+  // Arbitrary properties, with or without variants:
+  //   [color:red]                 [mask-type:luminance]
+  //   hover:[border-color:red]    @sm:[color:red]    [&>p]:[color:red]
+  //
+  // This used to match `^\[…\]$` against the WHOLE class, which anchored on a
+  // leading bracket — so any variant prefix made it fail and the class silently
+  // emitted nothing at all. The bare form worked and `hover:border-[red]`
+  // worked, so only the combination was lost, which is what made it hard to
+  // notice. See ts-css#36.
+  //
+  // The colons inside the brackets belong to the VALUE, so the variants are
+  // peeled off with the bracket-aware split rather than `split(':')`. That also
+  // means every variant shape works here, not just the `[a-z-]+:` ones: `@sm:`,
+  // `*:`, `nth-[3n+1]:` and `data-[state=open]:` included.
+  {
+    const segments = splitTopLevelColons(cleanClassName)
+    let token = segments[segments.length - 1]
+    // `hover:![color:red]` puts the bang between the last variant and the
+    // property, where the strip at the top of this function cannot see it.
+    let bangBeforeProperty = false
+    if (token.charCodeAt(0) === 33 && token.length > 1) { // '!'
+      bangBeforeProperty = true
+      token = token.slice(1)
+    }
+    const arbitraryPropMatch = token.match(/^\[([a-z-]+):(.+)\]$/)
+    if (arbitraryPropMatch) {
+      return {
+        raw: className,
+        variants: segments.slice(0, -1),
+        utility: arbitraryPropMatch[1],
+        // Arbitrary properties follow the same underscore-as-space convention
+        // as arbitrary values: `[background:center_/_cover]` needs to emit
+        // `center / cover`. url() content is preserved by the helper.
+        value: convertArbitraryUnderscores(arbitraryPropMatch[2]),
+        important: important || bangBeforeProperty,
+        arbitrary: true,
+      }
     }
   }
 
@@ -1452,22 +1505,7 @@ function parseClassImpl(className: string): Omit<ParsedClass, 'base'> {
   }
 
   // Split on colons, but preserve colons inside brackets [...]
-  const parts: string[] = []
-  let current = ''
-  let bracketDepth = 0
-  for (let i = 0; i < cleanClassName.length; i++) {
-    const ch = cleanClassName[i]
-    if (ch === '[') bracketDepth++
-    else if (ch === ']') bracketDepth--
-    if (ch === ':' && bracketDepth === 0) {
-      parts.push(current)
-      current = ''
-    }
-    else {
-      current += ch
-    }
-  }
-  parts.push(current)
+  const parts = splitTopLevelColons(cleanClassName)
 
   let utility = parts[parts.length - 1]
   const variants = parts.slice(0, -1)

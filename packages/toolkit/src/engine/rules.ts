@@ -1,6 +1,6 @@
 import type { CssConfig, ParsedClass, UtilityRuleResult } from './types'
 import { colorModifierSlashIndex } from './color-modifier'
-import { advancedRules } from './rules-advanced'
+import { advancedRules, arbitraryPropertyRule } from './rules-advanced'
 import { effectsRules } from './rules-effects'
 import { maskRules } from './rules-mask'
 import { shadowRules } from './rules-shadow'
@@ -1249,6 +1249,19 @@ export const borderRadiusRule: UtilityRule = (parsed, config) => {
 export const builtInRules: UtilityRule[] = [
   // CRITICAL: Most common utilities first for O(1) lookup performance
   // Rule order matters! More specific rules must come before more general ones.
+
+  // Arbitrary properties — `[color:red]`, `hover:[mask-type:luminance]` — are
+  // the escape hatch for anything the utility vocabulary cannot reach, so the
+  // property name is LITERAL and must not be reinterpreted. This has to be
+  // first: four shorthand property names collide with a utility family, and
+  // whichever rule owns that family claimed them instead, emitting the wrong
+  // longhand —
+  //   [outline:2px_solid_red] -> outline-width   [border:1px_solid_red] -> border-color
+  //   [font:bold_12px_serif]  -> font-weight     [mask:none]            -> mask-image
+  // The gate inside the rule is narrow (an arbitrary parse whose base starts
+  // with `[`), so running it first cannot shadow an arbitrary VALUE such as
+  // `w-[100px]`, whose base does not.
+  arbitraryPropertyRule,
 
   // Iconify-style `i-{collection}-{name}` icons. Must be first because the
   // pattern is unambiguous and skipping the rest of the chain on match keeps
