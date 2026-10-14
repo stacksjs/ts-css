@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@stacksjs/logsmith": "^0.2.14",
-    "better-dx": "^0.2.15"
+    "better-dx": "^0.2.38"
   },
   "git-hooks": {
     "pre-commit": {
@@ -68,7 +68,7 @@
     "packages/*"
   ],
   "overrides": {
-    "bunfig": "0.15.17",
+    "bunfig": "0.15.19",
     "typescript": "^7.0.2"
   }
 }
