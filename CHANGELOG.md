@@ -1,3 +1,22 @@
+[Compare changes](https://github.com/cwcss/crosswind/compare/v0.3.14...v0.3.15)
+
+## 🐛 Bug Fixes
+
+- **gitignore**: ignore the compiled cssx binary in packages/toolkit/bin ([556d271](https://github.com/cwcss/crosswind/commit/556d271)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **release**: install @stacksjs/logsmith so the changelog step resolves ([08641f4](https://github.com/cwcss/crosswind/commit/08641f4)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 📝 Documentation
+
+- add the v0.3.14 changelog entry the release skipped ([3a5d480](https://github.com/cwcss/crosswind/commit/3a5d480)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.15 ([d605835](https://github.com/cwcss/crosswind/commit/d605835)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.13...v0.3.14)
 
 ## 🐛 Bug Fixes
