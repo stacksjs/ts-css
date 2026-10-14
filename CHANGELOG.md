@@ -1,3 +1,21 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.15...v0.3.16)
+
+## 🐛 Bug Fixes
+
+- **extractor**: keep bracket spans opaque when tokenising class names ([fd52fa6](https://github.com/stacksjs/ts-css/commit/fd52fa6)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#37](https://github.com/stacksjs/ts-css/issues/37), [#36](https://github.com/stacksjs/ts-css/issues/36), [#36](https://github.com/stacksjs/ts-css/issues/36))
+
+## 📝 Documentation
+
+- point the remaining changelog links at the current repository ([eee266f](https://github.com/stacksjs/ts-css/commit/eee266f)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.16 ([764eaa8](https://github.com/stacksjs/ts-css/commit/764eaa8)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.14...v0.3.15)
 
 ## 🐛 Bug Fixes

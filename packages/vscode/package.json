@@ -1,6 +1,6 @@
 {
   "name": "@ts-css/vscode",
-  "version": "0.3.15",
+  "version": "0.3.16",
   "description": "VS Code extension for ts-css (placeholder package)",
   "license": "MIT",
   "repository": {
