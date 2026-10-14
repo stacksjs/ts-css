@@ -1872,32 +1872,70 @@ function parseClassImpl(className: string): Omit<ParsedClass, 'base'> {
 
 
 /**
- * Validates if a string is a valid Tailwind utility class name
- * Supports arbitrary values like z-[1], w-[100px], bg-[#ff0000]
- * Supports variants like hover:, focus:, sm:, md:
- * Supports important modifier !
- * Supports negative values like -m-4
- * Supports bracket syntax like flex[col jc-center] when enabled
- * Supports colon syntax like bg:black when enabled
+ * Does this segment name an arbitrary property — `[color:red]`?
 */
-function isValidClassName(name: string, bracketConfig?: BracketSyntaxConfig): boolean {
-  // Quick check for obviously invalid names
-  if (!name || name.length === 0) return false
+function isArbitraryPropertySegment(segment: string): boolean {
+  return /^\[[a-z-]+:[^\]]+\]$/i.test(segment)
+}
+
+/**
+ * Does this segment name a variant?
+ *
+ * Variants are not all word-shaped, and a word-shaped-only pattern quietly
+ * rejected whole families: `@sm` and `@min-[400px]` are container queries,
+ * `*` and `**` the child and descendant combinators, and `[&>p]` an arbitrary
+ * selector. The generator builds all of them; none could be reached from
+ * scanned markup.
+*/
+function isVariantSegment(segment: string): boolean {
+  if (!segment)
+    return false
+
+  // The child (`*`) and descendant (`**`) combinators.
+  if (segment === '*' || segment === '**')
+    return true
+
+  // An arbitrary selector variant: `[&>p]`, `[&_li]`.
+  if (segment.startsWith('[') && segment.endsWith(']'))
+    return segment.length > 2
+
+  // A word, optionally `@`-prefixed for a container query, optionally carrying
+  // an arbitrary argument and a `/name` container or group label: `hover`,
+  // `group-hover`, `data-[state=open]`, `nth-[3n+1]`, `supports-[display:grid]`,
+  // `@sm`, `@max-md`, `@min-[400px]`, `@sm/sidebar`, `group/item`.
+  return /^(?:@[a-z0-9]|[a-z])[a-z0-9.-]*(?:\[[^\]]+\])?(?:\/[\w-]+)?$/i.test(segment)
+}
+
+/**
+ * Does this segment name a utility — the last, non-variant part of a class?
+*/
+function isUtilitySegment(segment: string, bracketConfig?: BracketSyntaxConfig): boolean {
+  // `hover:![color:red]` puts the bang here rather than on the whole class.
+  let base = segment
+  if (base.startsWith('!'))
+    base = base.slice(1)
+  if (base.endsWith('!'))
+    base = base.slice(0, -1)
+  if (!base)
+    return false
 
   // Arbitrary properties like [color:red], [mask-type:luminance]
-  if (/^\[[a-z-]+:[^\]]+\]$/i.test(name)) return true
+  if (isArbitraryPropertySegment(base))
+    return true
 
   // Bracket syntax: flex[col jc-center ai-center]
-  if (bracketConfig?.enabled && /^[a-z]+\[[^\]]+\]$/i.test(name)) return true
-
-  // Colon syntax: bg:black, w:100%
-  if (bracketConfig?.colonSyntax && /^[a-z]+:[^[\]:]+$/i.test(name)) return true
+  if (bracketConfig?.enabled && /^[a-z]+\[[^\]]+\]$/i.test(base))
+    return true
 
   // Standard utility classes with optional:
-  // - ! prefix (important)
   // - - prefix (negative values)
+  // - @ prefix: `@container` and `@container/sidebar` are utilities, not
+  //   variants — they establish the container that `@sm:` then queries, so
+  //   rejecting them here left the queries with nothing to resolve against.
+  //   It also admits `@scope/pkg` from an import string as a candidate; the
+  //   generator is what declines those, and the test asserts the emitted
+  //   sheet rather than the candidate set for exactly that reason.
   // - Arbitrary values in brackets like -[100px] or -[#ff0000]
-  // - Variant prefixes with colons like hover:, sm:, focus:
   // - Decimal values like py-2.5, gap-0.5
   // - Opacity modifiers like bg-white/55, ring-black/[0.06]
   //
@@ -1906,8 +1944,50 @@ function isValidClassName(name: string, bracketConfig?: BracketSyntaxConfig): bo
   // here — the unquoted-attribute fallback and code strings — so the same class
   // extracted fine from `class="bg-white/55"` and vanished from
   // `const cls = 'bg-white/55'`.
-  const segment = String.raw`!?-?[a-z][a-z0-9.-]*(?:-\[[^\]]+\])?(?:\/(?:[\w.]+|\[[^\]]+\]))?`
-  return new RegExp(`^${segment}(?::${segment})*$`, 'i').test(name)
+  return /^[-@]?[a-z][a-z0-9.-]*(?:-\[[^\]]+\])?(?:\/(?:[\w.]+|[\w-]+|\[[^\]]+\]))?$/i.test(base)
+}
+
+/**
+ * Validates if a string is a valid Tailwind utility class name
+ * Supports arbitrary values like z-[1], w-[100px], bg-[#ff0000]
+ * Supports arbitrary properties like [color:red], under a variant too
+ * Supports variants like hover:, focus:, sm:, md:, @sm:, *:, [&>p]:
+ * Supports important modifier !
+ * Supports negative values like -m-4
+ * Supports bracket syntax like flex[col jc-center] when enabled
+ * Supports colon syntax like bg:black when enabled
+ *
+ * Variants are peeled with the same bracket-aware split `parseClass` uses, so
+ * the scanner and the generator agree on where a class name's variants end.
+ * They did not: the `:` inside `[animation:none]` was read here as a variant
+ * separator, so `motion-reduce:[animation:none]` never survived extraction and
+ * the generator fix for #36 was unreachable from a real build (ts-css#37). It
+ * failed the way #36 did — no error, no warning, no rule.
+*/
+function isValidClassName(name: string, bracketConfig?: BracketSyntaxConfig): boolean {
+  // Quick check for obviously invalid names
+  if (!name || name.length === 0) return false
+
+  // Colon syntax: bg:black, w:100%
+  if (bracketConfig?.colonSyntax && /^[a-z]+:[^[\]:]+$/i.test(name)) return true
+
+  // Important may sit on the whole class (`!hover:p-2`, `hover:p-2!`) as well
+  // as on the utility alone, and `parseClass` strips it here too.
+  let bare = name
+  if (bare.startsWith('!'))
+    bare = bare.slice(1)
+  if (bare.endsWith('!'))
+    bare = bare.slice(0, -1)
+  if (!bare)
+    return false
+
+  const segments = splitTopLevelColons(bare)
+  for (let i = 0; i < segments.length - 1; i++) {
+    if (!isVariantSegment(segments[i]))
+      return false
+  }
+
+  return isUtilitySegment(segments[segments.length - 1], bracketConfig)
 }
 
 /**
