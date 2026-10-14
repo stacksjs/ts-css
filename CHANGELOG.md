@@ -1,17 +1,17 @@
-[Compare changes](https://github.com/cwcss/crosswind/compare/v0.3.14...v0.3.15)
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.14...v0.3.15)
 
 ## 🐛 Bug Fixes
 
-- **gitignore**: ignore the compiled cssx binary in packages/toolkit/bin ([556d271](https://github.com/cwcss/crosswind/commit/556d271)) _(by glennmichael123 <gtorregosa@gmail.com>)_
-- **release**: install @stacksjs/logsmith so the changelog step resolves ([08641f4](https://github.com/cwcss/crosswind/commit/08641f4)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **gitignore**: ignore the compiled cssx binary in packages/toolkit/bin ([556d271](https://github.com/stacksjs/ts-css/commit/556d271)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **release**: install @stacksjs/logsmith so the changelog step resolves ([08641f4](https://github.com/stacksjs/ts-css/commit/08641f4)) _(by glennmichael123 <gtorregosa@gmail.com>)_
 
 ## 📝 Documentation
 
-- add the v0.3.14 changelog entry the release skipped ([3a5d480](https://github.com/cwcss/crosswind/commit/3a5d480)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- add the v0.3.14 changelog entry the release skipped ([3a5d480](https://github.com/stacksjs/ts-css/commit/3a5d480)) _(by glennmichael123 <gtorregosa@gmail.com>)_
 
 ## 🔧 Chores
 
-- release v0.3.15 ([d605835](https://github.com/cwcss/crosswind/commit/d605835)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- release v0.3.15 ([d605835](https://github.com/stacksjs/ts-css/commit/d605835)) _(by glennmichael123 <gtorregosa@gmail.com>)_
 
 ## Contributors
 
@@ -211,35 +211,35 @@
 
 - _Chris <chrisbreuer93@gmail.com>_
 
-[Compare changes](https://github.com/cwcss/crosswind/compare/v0.3.2...v0.3.3)
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.2...v0.3.3)
 
 ## 🐛 Bug Fixes
 
-- **config**: follow the CssOptions rename in the repo's own config ([759cc86](https://github.com/cwcss/crosswind/commit/759cc86)) _(by Chris <chrisbreuer93@gmail.com>)_
+- **config**: follow the CssOptions rename in the repo's own config ([759cc86](https://github.com/stacksjs/ts-css/commit/759cc86)) _(by Chris <chrisbreuer93@gmail.com>)_
 
 ## 🔧 Chores
 
-- release v0.3.3 ([388137c](https://github.com/cwcss/crosswind/commit/388137c)) _(by Chris <chrisbreuer93@gmail.com>)_
+- release v0.3.3 ([388137c](https://github.com/stacksjs/ts-css/commit/388137c)) _(by Chris <chrisbreuer93@gmail.com>)_
 
 ## Contributors
 
 - _Chris <chrisbreuer93@gmail.com>_
 
-[Compare changes](https://github.com/cwcss/crosswind/compare/v0.3.1...v0.3.2)
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.1...v0.3.2)
 
 ## 💥 Breaking Changes
 
-- refactor!: rename the TsCss type family to Css ([6758e2b](https://github.com/cwcss/crosswind/commit/6758e2b)) _(by Chris <chrisbreuer93@gmail.com>)_
+- refactor!: rename the TsCss type family to Css ([6758e2b](https://github.com/stacksjs/ts-css/commit/6758e2b)) _(by Chris <chrisbreuer93@gmail.com>)_
 
 ## 👷 Build System
 
-- ship only the cssx binary, not a ts-css one ([f511c0e](https://github.com/cwcss/crosswind/commit/f511c0e)) _(by Chris <chrisbreuer93@gmail.com>)_
+- ship only the cssx binary, not a ts-css one ([f511c0e](https://github.com/stacksjs/ts-css/commit/f511c0e)) _(by Chris <chrisbreuer93@gmail.com>)_
 
 ## 🔧 Chores
 
-- release v0.3.2 ([26559ed](https://github.com/cwcss/crosswind/commit/26559ed)) _(by Chris <chrisbreuer93@gmail.com>)_
-- update links ([5051d5a](https://github.com/cwcss/crosswind/commit/5051d5a)) _(by Chris <chrisbreuer93@gmail.com>)_
-- adjust name ([07b0128](https://github.com/cwcss/crosswind/commit/07b0128)) _(by Chris <chrisbreuer93@gmail.com>)_
+- release v0.3.2 ([26559ed](https://github.com/stacksjs/ts-css/commit/26559ed)) _(by Chris <chrisbreuer93@gmail.com>)_
+- update links ([5051d5a](https://github.com/stacksjs/ts-css/commit/5051d5a)) _(by Chris <chrisbreuer93@gmail.com>)_
+- adjust name ([07b0128](https://github.com/stacksjs/ts-css/commit/07b0128)) _(by Chris <chrisbreuer93@gmail.com>)_
 
 ## Contributors
 
