@@ -53,6 +53,7 @@
     "prepare": "bun run build:toolkit"
   },
   "devDependencies": {
+    "@stacksjs/logsmith": "^0.2.14",
     "better-dx": "^0.2.15"
   },
   "git-hooks": {
