@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.13...v0.3.14)
+
+## 🐛 Bug Fixes
+
+- make arbitrary properties work with variants and keep their names literal (#36) ([1f4420c](https://github.com/stacksjs/ts-css/commit/1f4420c)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#36](https://github.com/stacksjs/ts-css/issues/36))
+
+## 🧹 Chores
+
+- release v0.3.14 ([9186aca](https://github.com/stacksjs/ts-css/commit/9186aca)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.12...v0.3.13)
 
 ## ✨ Features
