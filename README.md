@@ -11,7 +11,7 @@ A CSS engine with two front ends and one atomic output.
 Write **utility classes** when you are laying out markup, and Tailwind v4 semantics apply unchanged. Write **typed style objects** when a style has to be computed, tokenised, or merged across a component boundary, and you get StyleX's authoring model. Both compile through the same pipeline into the same deduplicated atomic CSS, in one stylesheet, with nothing left at runtime.
 
 ```bash
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 ```
 
 ## Why two APIs
@@ -43,13 +43,13 @@ bunx cssx watch    # rebuilds on change
 
 ```ts
 // css.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 export default {
   content: ['./src/**/*.{html,ts,tsx,stx}'],
   output: './dist/styles.css',
   minify: true,
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```
 
 > **Semantics:** utility names, value scales, and validation follow **Tailwind v4**. A class Tailwind rejects generates nothing, rather than leaking a raw word into your CSS. Bracket syntax (`flex[col jc-center]`), colon syntax (`bg:black`), attributify mode, the compile-class transformer, and `text-shadow-*` / `word-spacing-*` are deliberate extensions, held to the same validation rules.
@@ -57,7 +57,7 @@ export default {
 ## Style objects
 
 ```ts
-import { css } from '@ts-css/core'
+import { css } from '@stacksjs/ts-css/engine'
 
 const theme = css.defineVars({
   accent: '#0b7',
@@ -87,7 +87,7 @@ export default {
   content: ['./src/**/*.tsx'],
   styles: ['./src/**/*.styles.ts'],
   output: './dist/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```
 
 ### Merging is per property, not per class
@@ -223,7 +223,7 @@ cssx clean          # remove the output file
 ## Configuration
 
 ```ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 export default {
   content: ['./src/**/*.{html,ts,tsx}'],
@@ -244,7 +244,7 @@ export default {
 
   safelist: ['bg-red-500'],
   blocklist: ['debug-*'],
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```
 
 Full reference: [packages/toolkit/ENGINE.md](packages/toolkit/ENGINE.md).
@@ -253,7 +253,7 @@ Full reference: [packages/toolkit/ENGINE.md](packages/toolkit/ENGINE.md).
 
 ```bash
 git clone https://github.com/stacksjs/ts-css.git
-cd crosswind
+cd ts-css
 bun install
 bun test                    # 1900+ tests
 bun run benchmark           # vs Tailwind and UnoCSS
@@ -262,7 +262,7 @@ bun run benchmark:style     # vs StyleX
 
 ## Documentation
 
-[crosswind.stacksjs.org](https://crosswind.stacksjs.org)
+[ts-css documentation](https://github.com/stacksjs/ts-css/tree/main/docs)
 
 ## Changelog
 
@@ -296,7 +296,7 @@ The MIT License (MIT). Please see [LICENSE](LICENSE.md) for more information.
 Made with 💙
 
 <!-- Badges -->
-[npm-version-src]: https://img.shields.io/npm/v/@ts-css/core?style=flat-square
-[npm-version-href]: https://npmjs.com/package/@ts-css/core
+[npm-version-src]: https://img.shields.io/npm/v/@stacksjs/ts-css?style=flat-square
+[npm-version-href]: https://npmjs.com/package/@stacksjs/ts-css
 [github-actions-src]: https://img.shields.io/github/actions/workflow/status/stacksjs/ts-css/ci.yml?style=flat-square&branch=main
 [github-actions-href]: https://github.com/stacksjs/ts-css/actions?query=workflow%3Aci

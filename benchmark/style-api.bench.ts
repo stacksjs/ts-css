@@ -157,7 +157,7 @@ const transpiler = new Bun.Transpiler({ loader: 'ts' })
 
 const tsCssSources = new Map(WORKLOADS.map(w => [
   w.name,
-  `import { css } from '@ts-css/core'\nexport const styles = css.create(${w.literal})\n`,
+  `import { css } from '@stacksjs/ts-css/engine'\nexport const styles = css.create(${w.literal})\n`,
 ]))
 
 /**

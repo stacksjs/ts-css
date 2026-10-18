@@ -37,7 +37,7 @@ Define shortcuts in your`css.config.ts`:
 
 ```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   shortcuts: {
@@ -56,7 +56,7 @@ const config = {
     'input': 'border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500',
     'input-error': 'input border-red-500 focus:ring-red-500',
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 

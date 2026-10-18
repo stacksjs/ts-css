@@ -5,7 +5,7 @@ A CSS engine with two front ends and one atomic output: Tailwind-compatible **ut
 ## Installation
 
 ```bash
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 ```
 
 ## Quick Start
@@ -13,7 +13,7 @@ bun add @ts-css/core
 ### Programmatic API
 
 ```typescript
-import { CSSGenerator, defaultConfig } from '@ts-css/core'
+import { CSSGenerator, defaultConfig } from '@stacksjs/ts-css/engine'
 
 const gen = new CSSGenerator(defaultConfig)
 gen.generate('flex')
@@ -32,7 +32,7 @@ const css = gen.toCSS(true) // true = include preflight
 ### Build API
 
 ```typescript
-import { build } from '@ts-css/core'
+import { build } from '@stacksjs/ts-css/engine'
 
 const result = await build({
   content: ['./src/**/*.html', './src/**/*.tsx'],
@@ -44,7 +44,7 @@ const result = await build({
 ### Style API
 
 ```typescript
-import { css } from '@ts-css/core'
+import { css } from '@stacksjs/ts-css/engine'
 
 const theme = css.defineVars({
   accent: '#0b7',
@@ -101,7 +101,7 @@ cssx build --minify
 Create a `css.config.ts` in your project root:
 
 ```typescript
-import type { TsCssConfig } from '@ts-css/core'
+import type { CssConfig } from '@stacksjs/ts-css/engine'
 
 export default {
   content: ['./src/**/*.{html,tsx,stx}'],
@@ -127,7 +127,7 @@ export default {
 
   safelist: ['bg-brand-500', 'text-white'],
   blocklist: ['opacity-0'],
-} satisfies Partial<TsCssConfig>
+} satisfies Partial<CssConfig>
 ```
 
 ### Theme
@@ -588,7 +588,7 @@ Prefix with `!` to apply `!important`:
 ## Presets
 
 ```typescript
-import type { Preset } from '@ts-css/core'
+import type { Preset } from '@stacksjs/ts-css/engine'
 
 const myPreset: Preset = {
   name: 'my-preset',

@@ -33,7 +33,7 @@ When you start watch mode, ts-css:
 
 Watch mode uses the content patterns from your configuration file:```typescript
 // css.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: [
@@ -42,7 +42,7 @@ const config = {
     './pages/**/*.svelte',
   ],
   output: './dist/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -89,7 +89,7 @@ const config = {
     './pages/**/*.tsx', // Watches: ./pages
     './components/**/*.tsx', // Watches: ./components
   ],
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```## CLI Options
 
 Customize watch mode behavior with CLI options:```bash

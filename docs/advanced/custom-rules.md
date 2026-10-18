@@ -16,7 +16,7 @@ While ts-css includes comprehensive built-in utilities, you can add custom rules
 Define custom rules in your configuration:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   rules: [
@@ -36,7 +36,7 @@ const config = {
       }),
     ],
   ],
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```## Rule Format
@@ -234,7 +234,7 @@ const config = {
 ```### Using Theme Values
 
 Access theme values in custom rules:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   theme: {
@@ -262,7 +262,7 @@ const config = {
       },
     ],
   ],
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```### Vendor Prefixes
 
 Add vendor prefixes for experimental features:```typescript

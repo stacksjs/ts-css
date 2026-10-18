@@ -309,7 +309,7 @@ cli
       process.exit(1)
     }
 
-    const defaultConfig = `import type { CssOptions } from '@ts-css/core'
+    const defaultConfig = `import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx,stx}'],
@@ -505,7 +505,7 @@ cli
 
 // Version command
 cli
-  .command('version', 'Show the version of Crosswind')
+  .command('version', 'Show the version of ts-css')
   .action(() => {
     console.log(version)
   })

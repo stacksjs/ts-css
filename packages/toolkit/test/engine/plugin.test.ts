@@ -22,7 +22,7 @@ describe('bun plugin', () => {
 </head>
 <body>
   <div class="flex items-center justify-between p-4 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600">
-    <h1 class="text-2xl font-bold">Hello Crosswind!</h1>
+    <h1 class="text-2xl font-bold">Hello ts-css!</h1>
   </div>
 </body>
 </html>`,

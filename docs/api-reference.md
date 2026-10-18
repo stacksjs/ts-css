@@ -5,12 +5,12 @@ This document provides a complete reference for ts-css's programmatic API. Use t
 ## Installation
 
 ```bash
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 ```## Core Functions
 
-### `build(config: TsCssConfig): Promise<BuildResult>`Build CSS from content files and return the result.**Parameters:**-`config` - Complete ts-css configuration object**Returns:**`Promise<BuildResult>`**Example:**```typescript
+### `build(config: CssConfig): Promise<BuildResult>`Build CSS from content files and return the result.**Parameters:**-`config` - Complete ts-css configuration object**Returns:**`Promise<BuildResult>`**Example:**```typescript
 
-import { build } from '@ts-css/core'
+import { build } from '@stacksjs/ts-css/engine'
 
 const result = await build({
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
@@ -38,8 +38,8 @@ const result = await build({
 console.log(`Built ${result.classes.size} classes in ${result.duration}ms`)
 console.log(`Generated CSS:\n${result.css}`)
 
-```###`buildAndWrite(config: TsCssConfig): Promise<BuildResult>`Build CSS and write it to the output file.**Parameters:**-`config` - Complete ts-css configuration object**Returns:**`Promise<BuildResult>`**Example:**```typescript
-import { buildAndWrite } from '@ts-css/core'
+```###`buildAndWrite(config: CssConfig): Promise<BuildResult>`Build CSS and write it to the output file.**Parameters:**-`config` - Complete ts-css configuration object**Returns:**`Promise<BuildResult>`**Example:**```typescript
+import { buildAndWrite } from '@stacksjs/ts-css/engine'
 
 const result = await buildAndWrite({
   content: ['./src/**/*.tsx'],
@@ -53,13 +53,13 @@ console.log(`File size: ${result.css.length} bytes`)
 ```###`writeCSS(css: string, outputPath: string): Promise<void>`Write CSS string to a file.**Parameters:**-`css`- CSS content to write
 
 -`outputPath` - Path to output file**Returns:**`Promise<void>`**Example:**```typescript
-import { build, writeCSS } from '@ts-css/core'
+import { build, writeCSS } from '@stacksjs/ts-css/engine'
 
 const result = await build(config)
 await writeCSS(result.css, './custom/path/output.css')
 
 ```###`writeTransformedFiles(transformedFiles: Map<string, string>): Promise<void>`Write transformed files to disk (used with compile class transformer).**Parameters:**-`transformedFiles` - Map of file paths to transformed content**Returns:**`Promise<void>`**Example:**```typescript
-import { build, writeTransformedFiles } from '@ts-css/core'
+import { build, writeTransformedFiles } from '@stacksjs/ts-css/engine'
 
 const result = await build({
   // ... config with compileClass enabled
@@ -76,10 +76,10 @@ if (result.transformedFiles) {
 ### `CSSGenerator`
 
 Class responsible for generating CSS from utility classes.**Constructor:**```typescript
-new CSSGenerator(config: TsCssConfig)
+new CSSGenerator(config: CssConfig)
 
 ```**Methods:**#### `generate(className: string): void`Generate CSS for a single utility class.```typescript
-import { CSSGenerator } from '@ts-css/core'
+import { CSSGenerator } from '@stacksjs/ts-css/engine'
 
 const generator = new CSSGenerator(config)
 generator.generate('bg-blue-500')
@@ -96,7 +96,7 @@ const prettyCSS = generator.toCSS(false) // Formatted
 generator.reset()
 ```**Complete example:**```typescript
 
-import { CSSGenerator, defaultConfig } from '@ts-css/core'
+import { CSSGenerator, defaultConfig } from '@stacksjs/ts-css/engine'
 
 const config = {
   ...defaultConfig,
@@ -133,7 +133,7 @@ new Scanner(
 
 -`classes`- Set of found utility classes
 -`transformedFiles` - Map of transformed files (if transformer provided)**Example:**```typescript
-import { Scanner } from '@ts-css/core'
+import { Scanner } from '@stacksjs/ts-css/engine'
 
 const scanner = new Scanner(['./src/**/*.tsx'])
 const { classes, transformedFiles } = await scanner.scan()
@@ -147,7 +147,7 @@ for (const className of classes) {
 
 ### `parseClass(className: string): ParsedClass`Parse a utility class string into its components.**Parameters:**-`className` - Class name to parse**Returns:**`ParsedClass` object**Example:**```typescript
 
-import { parseClass } from '@ts-css/core'
+import { parseClass } from '@stacksjs/ts-css/engine'
 
 const parsed = parseClass('md:hover:bg-blue-500')
 
@@ -172,7 +172,7 @@ console.log(arbitrary.value) // '500px'
 ### `defaultConfig`
 
 The default ts-css configuration object.**Example:**```typescript
-import { defaultConfig } from '@ts-css/core'
+import { defaultConfig } from '@stacksjs/ts-css/engine'
 
 // Extend default config
 const config = {
@@ -186,9 +186,9 @@ const config = {
   },
 }
 
-```###`loadConfig(options): Promise<TsCssConfig>`Load configuration from file (used internally by CLI).**Parameters:**-`options.name`- Config name (default: 'css')
--`options.defaultConfig` - Default configuration**Returns:**`Promise<TsCssConfig>`**Example:**```typescript
-import { defaultConfig, loadConfig } from '@ts-css/core'
+```###`loadConfig(options): Promise<CssConfig>`Load configuration from file (used internally by CLI).**Parameters:**-`options.name`- Config name (default: 'css')
+-`options.defaultConfig` - Default configuration**Returns:**`Promise<CssConfig>`**Example:**```typescript
+import { defaultConfig, loadConfig } from '@stacksjs/ts-css/engine'
 
 const config = await loadConfig({
   name: 'css',
@@ -208,7 +208,7 @@ new CompileClassTransformer(config?: {
 ```**Methods:**#### `getCompiledClasses(): Map<string, { className: string, utilities: string[] }>`
 
 Get all compiled classes.**Example:**```typescript
-import { CompileClassTransformer } from '@ts-css/core'
+import { CompileClassTransformer } from '@stacksjs/ts-css/engine'
 
 const transformer = new CompileClassTransformer({
   trigger: ':tc:',
@@ -225,9 +225,9 @@ for (const [hash, data] of compiled) {
 }
 ```## Types
 
-### `TsCssConfig`Complete configuration interface.```typescript
+### `CssConfig`Complete configuration interface.```typescript
 
-interface TsCssConfig {
+interface CssConfig {
   content: string[]
   output: string
   minify: boolean
@@ -244,8 +244,8 @@ interface TsCssConfig {
   compileClass?: CompileClassConfig
 }
 
-```###`TsCssOptions`Partial configuration for user configs.```typescript
-type TsCssOptions = Partial<TsCssConfig>
+```###`CssOptions`Partial configuration for user configs.```typescript
+type CssOptions = Partial<CssConfig>
 ```###`Theme`Theme configuration interface.```typescript
 
 interface Theme {
@@ -324,7 +324,7 @@ interface VariantConfig {
 
 ### Custom Build Pipeline```typescript
 
-import { CSSGenerator, Scanner, writeCSS } from '@ts-css/core'
+import { CSSGenerator, Scanner, writeCSS } from '@stacksjs/ts-css/engine'
 
 async function customBuild() {
   // 1. Configure
@@ -361,7 +361,7 @@ async function customBuild() {
 await customBuild()
 
 ```### Analyze Utility Usage```typescript
-import { parseClass, Scanner } from '@ts-css/core'
+import { parseClass, Scanner } from '@stacksjs/ts-css/engine'
 
 async function analyzeUtilities() {
   const scanner = new Scanner(['./src/**/*.tsx'])
@@ -389,9 +389,9 @@ await analyzeUtilities()
 ```### Watch Mode Implementation```typescript
 
 import { watch } from 'node:fs'
-import { buildAndWrite } from '@ts-css/core'
+import { buildAndWrite } from '@stacksjs/ts-css/engine'
 
-async function watchMode(config: TsCssConfig) {
+async function watchMode(config: CssConfig) {
   console.log('Watching for changes...')
 
   // Initial build
@@ -419,14 +419,14 @@ async function watchMode(config: TsCssConfig) {
 await watchMode(config)
 
 ```### Framework Plugin```typescript
-import { buildAndWrite } from '@ts-css/core'
+import { buildAndWrite } from '@stacksjs/ts-css/engine'
 
 // Usage in vite.config.ts
 import { defineConfig } from 'vite'
 import { tsCssPlugin } from './plugins/ts-css'
 
 // Example Vite plugin
-export function tsCssPlugin(config: TsCssOptions) {
+export function tsCssPlugin(config: CssOptions) {
   return {
     name: 'vite-plugin-ts-css',
 
@@ -457,7 +457,7 @@ export default defineConfig({
 })
 ```### Generate Multiple Themes```typescript
 
-import { build, writeCSS } from '@ts-css/core'
+import { build, writeCSS } from '@stacksjs/ts-css/engine'
 
 const baseConfig = {
   content: ['./src/**/*.tsx'],
@@ -494,7 +494,7 @@ for (const [name, theme] of Object.entries(themes)) {
 
 ```### Testing Utilities```typescript
 import { expect, test } from 'bun:test'
-import { CSSGenerator, defaultConfig, parseClass } from '@ts-css/core'
+import { CSSGenerator, defaultConfig, parseClass } from '@stacksjs/ts-css/engine'
 
 test('parses utility class', () => {
   const parsed = parseClass('md:hover:bg-blue-500')
@@ -519,7 +519,7 @@ test('handles important modifier', () => {
 })
 ```## Error Handling```typescript
 
-import { buildAndWrite } from '@ts-css/core'
+import { buildAndWrite } from '@stacksjs/ts-css/engine'
 
 try {
   const result = await buildAndWrite(config)
@@ -543,11 +543,11 @@ catch (error) {
 
 ### Caching Results```typescript
 
-import { build } from '@ts-css/core'
+import { build } from '@stacksjs/ts-css/engine'
 
 const cache = new Map<string, BuildResult>()
 
-async function buildWithCache(config: TsCssConfig) {
+async function buildWithCache(config: CssConfig) {
   const key = JSON.stringify(config)
 
   if (cache.has(key)) {
@@ -562,7 +562,7 @@ async function buildWithCache(config: TsCssConfig) {
 }
 ```### Parallel Builds```typescript
 
-import { build, writeCSS } from '@ts-css/core'
+import { build, writeCSS } from '@stacksjs/ts-css/engine'
 
 const configs = [
   { output: './dist/app.css', content: ['./src/app/**/*.tsx'] },

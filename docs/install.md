@@ -9,31 +9,31 @@ Install ts-css as a development dependency in your project:
 ::: code-group
 
 ```sh [bun]
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # or
 
-bun install --dev @ts-css/core
+bun install --dev @stacksjs/ts-css
 ```
 
 ```sh [npm]
-npm install @ts-css/core
+npm install @stacksjs/ts-css
 
 # or
 
-npm i -D @ts-css/core
+npm i -D @stacksjs/ts-css
 ```
 
 ```sh [pnpm]
-pnpm add @ts-css/core
+pnpm add @stacksjs/ts-css
 
 # or
 
-pnpm add -D @ts-css/core
+pnpm add -D @stacksjs/ts-css
 ```
 
 ```sh [yarn]
-yarn add @ts-css/core
+yarn add @stacksjs/ts-css
 ```:::
 
 ### Global Installation
@@ -41,29 +41,29 @@ yarn add @ts-css/core
 For global installation (to use the CLI anywhere):
 
 ::: code-group```sh [bun]
-bun add --global @ts-css/core
+bun add --global @stacksjs/ts-css
 
 ```
 
 ```sh [npm]
 
-npm install --global @ts-css/core
+npm install --global @stacksjs/ts-css
 
 # or
 
-npm i -g @ts-css/core
+npm i -g @stacksjs/ts-css
 
 ```
 
 ```sh [pnpm]
 
-pnpm add --global @ts-css/core
+pnpm add --global @stacksjs/ts-css
 
 ```
 
 ```sh [yarn]
 
-yarn global add @ts-css/core
+yarn global add @stacksjs/ts-css
 
 ```:::
 
@@ -85,12 +85,12 @@ cssx watch
 ```## Configuration
 
 The`cssx init`command creates a basic`css.config.ts`file:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
   output: './dist/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -102,7 +102,7 @@ export default config
 
 # Install ts-css
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # Create config
 
@@ -110,7 +110,7 @@ cssx init
 ```Update your`css.config.ts`:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: [
@@ -120,7 +120,7 @@ const config = {
     './components/**/*.{js,ts,jsx,tsx}',
   ],
   output: './styles/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```Import the generated CSS in your app:```typescript
@@ -143,7 +143,7 @@ import './styles/styles.css'
 
 # Install ts-css
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # Create config
 
@@ -151,7 +151,7 @@ cssx init
 ```Update your`css.config.ts`:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: [
@@ -161,7 +161,7 @@ const config = {
     './app.vue',
   ],
   output: './assets/css/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```Import in your`app.vue`or main layout:```vue
@@ -174,7 +174,7 @@ export default config
 
 # Install ts-css
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # Create config
 
@@ -182,14 +182,14 @@ cssx init
 ```Update your`css.config.ts`:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: [
     './src/**/*.{html,js,svelte,ts}',
   ],
   output: './static/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```Import in your root layout:```html
@@ -203,7 +203,7 @@ export default config
 
 # Install ts-css
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # Create config
 
@@ -211,14 +211,14 @@ cssx init
 ```Update your`css.config.ts`:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: [
     './src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}',
   ],
   output: './public/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -235,7 +235,7 @@ import '/styles.css'
 
 # Install ts-css globally
 
-bun add --global @ts-css/core
+bun add --global @stacksjs/ts-css
 
 # Create config
 
@@ -243,12 +243,12 @@ cssx init
 ```Update your`css.config.ts`:
 
 ```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.html'],
   output: './dist/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```Link the CSS in your HTML:```html
@@ -273,60 +273,52 @@ Pre-built binaries are available for different platforms. Download the binary th
 
 # Download the binary
 
-curl -L <https://github.com/stacksjs/ts-css/releases/latest/download/cssx-darwin-arm64> -o crosswind
+curl -fL https://github.com/stacksjs/ts-css/releases/latest/download/cssx-darwin-arm64.zip -o cssx.zip
+unzip cssx.zip
 
-# Make it executable
+# Make it executable and move it to your PATH
 
-chmod +x cssx
-
-# Move it to your PATH
-
-sudo mv cssx /usr/local/bin/cssx
+chmod +x cssx-darwin-arm64
+sudo mv cssx-darwin-arm64 /usr/local/bin/cssx
 ```
 
 ```sh [macOS (x64)]
 
 # Download the binary
 
-curl -L <https://github.com/stacksjs/ts-css/releases/latest/download/cssx-darwin-x64> -o crosswind
+curl -fL https://github.com/stacksjs/ts-css/releases/latest/download/cssx-darwin-x64.zip -o cssx.zip
+unzip cssx.zip
 
-# Make it executable
+# Make it executable and move it to your PATH
 
-chmod +x cssx
-
-# Move it to your PATH
-
-sudo mv cssx /usr/local/bin/cssx
+chmod +x cssx-darwin-x64
+sudo mv cssx-darwin-x64 /usr/local/bin/cssx
 ```
 
 ```sh [Linux (arm64)]
 
 # Download the binary
 
-curl -L <https://github.com/stacksjs/ts-css/releases/latest/download/cssx-linux-arm64> -o crosswind
+curl -fL https://github.com/stacksjs/ts-css/releases/latest/download/cssx-linux-arm64.zip -o cssx.zip
+unzip cssx.zip
 
-# Make it executable
+# Make it executable and move it to your PATH
 
-chmod +x cssx
-
-# Move it to your PATH
-
-sudo mv cssx /usr/local/bin/cssx
+chmod +x cssx-linux-arm64
+sudo mv cssx-linux-arm64 /usr/local/bin/cssx
 ```
 
 ```sh [Linux (x64)]
 
 # Download the binary
 
-curl -L <https://github.com/stacksjs/ts-css/releases/latest/download/cssx-linux-x64> -o crosswind
+curl -fL https://github.com/stacksjs/ts-css/releases/latest/download/cssx-linux-x64.zip -o cssx.zip
+unzip cssx.zip
 
-# Make it executable
+# Make it executable and move it to your PATH
 
-chmod +x cssx
-
-# Move it to your PATH
-
-sudo mv cssx /usr/local/bin/cssx
+chmod +x cssx-linux-x64
+sudo mv cssx-linux-x64 /usr/local/bin/cssx
 ```
 
 ```sh [Windows (x64)]
@@ -376,7 +368,7 @@ const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
   output: './dist/styles.css',
   minify: process.env.NODE_ENV === 'production',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```## Next Steps
 
@@ -397,11 +389,11 @@ If you get permission errors when installing globally:```bash
 
 # Use sudo on macOS/Linux
 
-sudo bun add --global @ts-css/core
+sudo bun add --global @stacksjs/ts-css
 
 # Or install locally and use npx
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 bunx cssx build
 
 ```### TypeScript Errors
@@ -412,12 +404,12 @@ If you encounter TypeScript errors in your config file:
 
    bun add --dev typescript
    ```2. Use the`satisfies`keyword for type checking:```typescript
-   import type { TsCssOptions } from '@ts-css/core'
+   import type { CssOptions } from '@stacksjs/ts-css/engine'
 
    const config = {
      content: ['./src/**/*.tsx'],
      output: './dist/styles.css',
-   } satisfies TsCssOptions
+   } satisfies CssOptions
    ```### Build Errors
 
 If the build fails:
@@ -432,5 +424,5 @@ If the build fails:
 ## Support
 
 - [GitHub Issues](https://github.com/stacksjs/ts-css/issues)
-- [Documentation](https://crosswind.stacksjs.org)
+- [Documentation](https://github.com/stacksjs/ts-css/tree/main/docs)
 - [Discord Community](https://stacksjs.com/discord)

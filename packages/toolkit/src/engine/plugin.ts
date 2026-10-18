@@ -17,11 +17,11 @@ export interface CssPluginOptions {
 }
 
 /**
- * Crosswind Bun plugin for processing HTML files
+ * ts-css Bun plugin for processing HTML files
  *
  * @example
  * ```typescript
- * import { plugin } from '@ts-css/core'
+ * import { plugin } from '@stacksjs/ts-css/engine'
  *
  * await Bun.build({
  *   entrypoints: ['./src/index.ts'],

@@ -10,11 +10,11 @@ Install ts-css globally or locally:
 
 # Global (use anywhere)
 
-bun add --global @ts-css/core
+bun add --global @stacksjs/ts-css
 
 # Local (project-specific)
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 ```## Commands
 
 ### `build`Build CSS from your content files.```bash
@@ -125,14 +125,14 @@ Next steps:
 
 ```**Generated file:**```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
   output: './dist/styles.css',
   minify: false,
   watch: false,
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -403,7 +403,7 @@ cssx build --config ./css.test.config.ts
 ```### Programmatic Usage
 
 While the CLI is convenient, you can also use ts-css programmatically:```typescript
-import { build, buildAndWrite } from '@ts-css/core'
+import { build, buildAndWrite } from '@stacksjs/ts-css/engine'
 
 // Build only (get result)
 const result = await build({
@@ -459,7 +459,7 @@ const config = {
 ### Command Not Found**Problem:**`command not found: cssx`**Solutions:**1. Install globally
 
    ```bash
-   bun add --global @ts-css/core
+   bun add --global @stacksjs/ts-css
    ```2. Or use with package runner:```bash
    bunx cssx build
 
@@ -494,12 +494,12 @@ const config = {
    ls -la ./src/**/*.tsx
    ```3. Validate config:```typescript
    // Use type checking
-   import type { TsCssOptions } from '@ts-css/core'
+   import type { CssOptions } from '@stacksjs/ts-css/engine'
 
    const config = {
      content: ['./src/**/*.tsx'],
      output: './dist/styles.css',
-   } satisfies TsCssOptions // Type error will show if invalid
+   } satisfies CssOptions // Type error will show if invalid
    ```
 
 ## Performance Tips

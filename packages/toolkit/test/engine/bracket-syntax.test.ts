@@ -858,7 +858,7 @@ describe('Bracket Syntax', () => {
       const html = `
         <main class="reset:meyer">
           <div class="flex[col jc-center ai-center] bg:black w:100% h[min 100vh] scroll[y auto]">
-            <p class="text[arial white 2rem 700]">Hello Crosswind!</p>
+            <p class="text[arial white 2rem 700]">Hello ts-css!</p>
           </div>
         </main>
       `

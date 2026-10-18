@@ -2,10 +2,10 @@
 
 ## About
 
-`ts-css` (published on npm as `@ts-css/core`; CLI binary `cssx`, config file `css.config.ts`, class prefix `tc`) is an on-demand CSS engine built with Bun, with two front ends over one atomic output:
+`ts-css` (published on npm as `@stacksjs/ts-css`, with its utility engine at `@stacksjs/ts-css/engine`; CLI binary `cssx`, config file `css.config.ts`, class prefix `tc`) is an on-demand CSS engine built with Bun, with two front ends over one atomic output:
 
 - **Utility classes** — Tailwind v4-compatible, with full variant support (responsive, state, dark mode, pseudo-elements), arbitrary values, shortcut aliases, and compile-class HTML optimization.
-- **Style objects** — a StyleX-shaped typed API (`css.create`, `css.props`, `css.defineVars`, `css.createTheme`, `css.keyframes`) in `src/style/`, collected at build time by evaluating the modules that declare them.
+- **Style objects** — a StyleX-shaped typed API (`css.create`, `css.props`, `css.defineVars`, `css.createTheme`, `css.keyframes`) in `packages/toolkit/src/engine/style/`, collected at build time by evaluating the modules that declare them.
 
 Zero runtime dependencies, 1900+ tests, and both CLI and programmatic APIs.
 

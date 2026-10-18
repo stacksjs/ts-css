@@ -8,7 +8,7 @@ Use TypeScript for your configuration file to get autocompletion and type checki
 
 ```typescript
 // css.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
@@ -25,34 +25,34 @@ const config = {
   shortcuts: {
     btn: 'px-4 py-2 rounded font-semibold',
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```## Type Checking
 
 The`satisfies`keyword provides type checking while preserving literal types:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 // ✅ Type-safe with autocompletion
 const config = {
   content: ['./src/**/*.tsx'],
   output: './dist/styles.css',
   minify: true,
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 // ❌ Type error - unknown property
 const badConfig = {
   content: ['./src/**/*.tsx'],
   outputPath: './dist/styles.css', // Error: 'outputPath' does not exist
   // ^^^^^^^^ Property error
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```## Available Types
 
-### TsCssConfig
+### CssConfig
 
 Main configuration interface:```typescript
-interface TsCssConfig {
+interface CssConfig {
   content: string[]
   output: string
   minify: boolean
@@ -107,14 +107,14 @@ Get IntelliSense and autocompletion in your IDE:
 1. Install the TypeScript extension (comes pre-installed)
 2. Create`css.config.ts`with the type import:```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   // Press Ctrl+Space here for autocompletion
   theme: {
     // Autocomplete shows all theme options
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```### Theme Autocompletion```typescript
 
 const config = {
@@ -127,7 +127,7 @@ const config = {
       // See all font size options
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```### Shortcuts Autocompletion```typescript
 const config = {
@@ -136,7 +136,7 @@ const config = {
     'btn': 'px-4 py-2 rounded',
     'btn-primary': 'btn bg-blue-500', // Autocomplete shows existing shortcuts
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```## Type Inference
 
 TypeScript infers types from your configuration:```typescript
@@ -151,7 +151,7 @@ const config = {
       },
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 // TypeScript knows:
 // config.theme.colors.primary is string
@@ -161,13 +161,13 @@ const config = {
 
 ### Build Function```typescript
 
-import type { BuildResult, TsCssConfig } from '@ts-css/core'
-import { build } from '@ts-css/core'
+import type { BuildResult, CssConfig } from '@stacksjs/ts-css/engine'
+import { build } from '@stacksjs/ts-css/engine'
 
 const result: BuildResult = await build({
   content: ['./src/**/*.tsx'],
   output: './dist/styles.css',
-} as TsCssConfig)
+} as CssConfig)
 
 // result.css: string
 // result.classes: Set<string>
@@ -185,7 +185,7 @@ interface BuildResult {
 }
 
 ```### Using with async/await```typescript
-import { build, buildAndWrite } from '@ts-css/core'
+import { build, buildAndWrite } from '@stacksjs/ts-css/engine'
 
 async function buildStyles() {
   // With build
@@ -207,7 +207,7 @@ async function buildStyles() {
 ```## Custom Rules with Types
 
 Define type-safe custom rules:```typescript
-import type { CustomRule, TsCssConfig } from '@ts-css/core'
+import type { CustomRule, CssConfig } from '@stacksjs/ts-css/engine'
 
 const customRules: CustomRule[] = [
   // Pattern and handler with types
@@ -224,12 +224,12 @@ const customRules: CustomRule[] = [
 
 const config = {
   rules: customRules,
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```## Preset Types
 
 Create type-safe presets:```typescript
-import type { Preset, Theme } from '@ts-css/core'
+import type { Preset, Theme } from '@stacksjs/ts-css/engine'
 
 const myPreset: Preset = {
   name: 'my-design-system',
@@ -264,7 +264,7 @@ const config = {
 ### Custom Theme Values
 
 Extend the theme with custom properties:```typescript
-import type { TsCssOptions, Theme } from '@ts-css/core'
+import type { CssOptions, Theme } from '@stacksjs/ts-css/engine'
 
 interface CustomTheme extends Theme {
   customSpacing: Record<string, string>
@@ -281,14 +281,14 @@ const config = {
       brand: '#ff6b6b',
     },
   } as CustomTheme,
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```### Custom Config
 
 Create a custom config interface:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
-interface MyConfig extends Partial<TsCssConfig> {
+interface MyConfig extends Partial<CssConfig> {
   // Add custom properties
   customOption?: boolean
   metadata?: {
@@ -310,15 +310,15 @@ const config: MyConfig = {
 ```## Type Guards
 
 Use type guards for runtime type checking:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
-function isValidConfig(config: unknown): config is TsCssConfig {
+function isValidConfig(config: unknown): config is CssConfig {
   return (
     typeof config === 'object'
     && config !== null
     && 'content' in config
     && 'output' in config
-    && Array.isArray((config as TsCssConfig).content)
+    && Array.isArray((config as CssConfig).content)
   )
 }
 
@@ -326,16 +326,16 @@ function isValidConfig(config: unknown): config is TsCssConfig {
 const config: unknown = loadConfigFromSomewhere()
 
 if (isValidConfig(config)) {
-  // TypeScript knows config is TsCssConfig
+  // TypeScript knows config is CssConfig
   console.log(config.content)
 }
 
 ```## Generics
 
 Use generics for flexible, type-safe functions:```typescript
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
-function createConfig<T extends Partial<TsCssConfig>>(config: T): T {
+function createConfig<T extends Partial<CssConfig>>(config: T): T {
   return {
     ...config,
     // Add defaults while preserving original types
@@ -356,13 +356,13 @@ const config = createConfig({
 
 Extend ts-css types globally:```typescript
 // Now use in config
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 // types/ts-css.d.ts
-import '@ts-css/core'
+import '@stacksjs/ts-css/engine'
 
-declare module '@ts-css/core' {
-  interface TsCssConfig {
+declare module '@stacksjs/ts-css/engine' {
+  interface CssConfig {
     // Add your custom properties
     customFeature?: {
       enabled: boolean
@@ -386,18 +386,18 @@ const config = {
       xs: '0.5rem',
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```## Integration with Build Tools
 
 ### Vite```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
-import { build } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
+import { build } from '@stacksjs/ts-css/engine'
 // vite.config.ts
 import { defineConfig } from 'vite'
 
-const tsCssConfig: TsCssConfig = {
+const tsCssConfig: CssConfig = {
   content: ['./src/**/*.tsx'],
   output: './dist/styles.css',
   minify: true,
@@ -415,12 +415,12 @@ export default defineConfig({
 })
 ```### Next.js```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 // next.config.ts
 import type { NextConfig } from 'next'
-import { buildAndWrite } from '@ts-css/core'
+import { buildAndWrite } from '@stacksjs/ts-css/engine'
 
-const tsCssConfig: TsCssConfig = {
+const tsCssConfig: CssConfig = {
   content: ['./src/**/*.tsx', './app/**/*.tsx'],
   output: './public/styles.css',
   minify: process.env.NODE_ENV === 'production',
@@ -442,43 +442,43 @@ export default nextConfig
 ts-css provides useful type utilities:```typescript
 import type {
   CustomRule,
-  TsCssConfig,
+  CssConfig,
   ParsedClass,
   Preset,
   Theme,
-} from '@ts-css/core'
+} from '@stacksjs/ts-css/engine'
 
 // Extract specific types
 type ConfigColors = Theme['colors']
 type ConfigSpacing = Theme['spacing']
 
 // Use utility types
-type RequiredConfig = Required<TsCssConfig>
+type RequiredConfig = Required<CssConfig>
 type PartialTheme = Partial<Theme>
 ```## Best Practices
 
 ### 1. Always Use Type Imports```typescript
 
 // ✅ Type-only import
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 // ❌ Value import (unnecessary)
-import { TsCssConfig } from '@ts-css/core'
+import { CssConfig } from '@stacksjs/ts-css/engine'
 
 ```### 2. Use`satisfies`for Validation```typescript
 // ✅ Validates types while preserving literals
 const config = {
   content: ['./src/**/*.tsx'],
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 // ❌ Loses literal types
-const config: Partial<TsCssConfig> = {
+const config: Partial<CssConfig> = {
   content: ['./src/**/*.tsx'],
 }
 ```### 3. Separate Type Definitions```typescript
 
 // types/ts-css.ts
-import type { TsCssOptions, Preset } from '@ts-css/core'
+import type { CssOptions, Preset } from '@stacksjs/ts-css/engine'
 
 // css.config.ts
 import type { MyConfig } from './types/ts-css'
@@ -487,7 +487,7 @@ export interface MyCustomPreset extends Preset {
   customOption: boolean
 }
 
-export interface MyConfig extends Partial<TsCssConfig> {
+export interface MyConfig extends Partial<CssConfig> {
   presets: MyCustomPreset[]
 }
 
@@ -512,12 +512,12 @@ interface CustomTheme extends Theme {
 // Error: Type 'string' is not assignable to type 'string[]'
 const config = {
   content: './src/**/*.tsx', // Should be array
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```**Solution:**```typescript
 const config = {
   content: ['./src/**/*.tsx'], // Correct: array
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```
 
 ### Missing Types**Problem:**Cannot find type definitions**Solution:**```bash
@@ -528,14 +528,14 @@ bun add --dev typescript
 
 # Ensure types are imported
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 ```### Autocomplete Not Working**Problem:**No autocompletion in IDE**Solutions:**1. Restart TypeScript server
 
 2. Check tsconfig.json includes the config file
 3. Ensure proper imports:```typescript
 
-   import type { TsCssOptions } from '@ts-css/core'
+   import type { CssOptions } from '@stacksjs/ts-css/engine'
    ```
 
 ## Related*[Configuration](../config.md) - Full configuration guide*[Custom Rules](../advanced/custom-rules.md) - Creating custom utilities*[Presets](../advanced/presets.md) - Reusable configurations*[API Reference](../api-reference.md) - Programmatic API

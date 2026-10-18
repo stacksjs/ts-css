@@ -1,6 +1,6 @@
-# Crosswind Bun Plugin Example
+# ts-css Bun Plugin Example
 
-This example demonstrates how to use the Crosswind Bun plugin to automatically generate and inject CSS into your HTML files during the build process.
+This example demonstrates how to use the ts-css Bun plugin to automatically generate and inject CSS into your HTML files during the build process.
 
 ## Project Structure
 
@@ -13,14 +13,14 @@ This example demonstrates how to use the Crosswind Bun plugin to automatically g
 
 The plugin works by intercepting HTML imports in your TypeScript/JavaScript code. When you import an HTML file, the plugin:
 
-1. Scans the HTML for Crosswind utility classes
+1. Scans the HTML for ts-css utility classes
 2. Generates the corresponding CSS
 3. Injects the CSS into the`<head>`section
 4. Returns the processed HTML
 
 ### Basic Setup```typescript
 
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -36,7 +36,7 @@ import html from './index.html'
 document.body.innerHTML = html
 ```### With Custom Configuration```typescript
 
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -68,14 +68,14 @@ bun run build.ts
 ```## How It Works
 
 1. The plugin hooks into Bun's module loading system via`onLoad`2. When a`.html`file is imported, the plugin intercepts the load
-3. It extracts utility classes from the HTML using Crosswind's parser
-4. It generates CSS for those classes using Crosswind's generator
+3. It extracts utility classes from the HTML using ts-css's parser
+4. It generates CSS for those classes using ts-css's generator
 5. The generated CSS is injected into the`<head>`section
 6. The processed HTML is returned as a string in the bundled output
 
 ## Options
 
-### `config`Custom Crosswind configuration to override defaults. This can include
+### `config`Custom ts-css configuration to override defaults. This can include
 
 -`minify`: Minify the generated CSS
 

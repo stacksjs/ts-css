@@ -383,7 +383,7 @@ describe('Attributify Mode', () => {
       const html = `
         <main class="reset:meyer">
           <div class="flex[col jc-center ai-center]" tc-bg="slate-900" tc-w="full" tc-h="screen">
-            <h1 class="text[4rem 700]" tc-text="white">Hello Crosswind!</h1>
+            <h1 class="text[4rem 700]" tc-text="white">Hello ts-css!</h1>
             <p class="text[lg]" tc-text="gray-400" tc-mt="4">Welcome to the future of CSS</p>
           </div>
         </main>

@@ -1,23 +1,8 @@
-# crosswind-vscode
+# ts-css VS Code integration
 
-A Visual Studio Code extension for the Crosswind CSS framework. Provides editor integration for an enhanced development experience.
+This is a private placeholder package for future editor integration. It does not publish a VS Code Marketplace extension.
 
-## Installation
-
-Install from the VS Code Marketplace by searching for **crosswind-vscode**, or install via the command line:
-
-```bash
-code --install-extension crosswind-vscode
-```
-
-## Usage
-
-Once installed, the extension activates automatically in projects using Crosswind. It provides utility class support directly in your editor.
-
-## Features
-
-- Crosswind utility class support within VS Code
-- Seamless integration with the Crosswind CSS framework
+Use the ts-css utility engine and CLI from `@stacksjs/ts-css` in your project.
 
 ## License
 

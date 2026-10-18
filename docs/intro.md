@@ -130,15 +130,15 @@ Install ts-css via your package manager:```bash
 
 # Using Bun (recommended)
 
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 
 # Using npm
 
-npm install @ts-css/core
+npm install @stacksjs/ts-css
 
 # Using pnpm
 
-pnpm add @ts-css/core
+pnpm add @stacksjs/ts-css
 
 ```### Configuration
 
@@ -146,12 +146,12 @@ Create a configuration file:```bash
 cssx init
 ```This creates a`css.config.ts`file:```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
   output: './dist/styles.css',
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -272,7 +272,7 @@ const config = {
       mono: ['Fira Code', 'monospace'],
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```### Shortcuts
 
 Create reusable utility combinations:```typescript
@@ -282,7 +282,7 @@ const config = {
     'btn-primary': 'btn bg-blue-500 text-white hover:bg-blue-600',
     'card': 'rounded-lg shadow-md p-6 bg-white',
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```Use shortcuts like any other utility:```html
 <button class="btn-primary">Click Me</button>

@@ -8,7 +8,7 @@ The theme configuration defines the design tokens that utilities are generated f
 
 ```typescript
 // css.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   theme: {
@@ -21,7 +21,7 @@ const config = {
       8: '2rem', // p-8, m-8, etc.
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 ```## Colors
@@ -339,7 +339,7 @@ const config = {
 </div>
 ```## Complete Theme Example```typescript
 
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   theme: {
@@ -481,7 +481,7 @@ const config = {
       '2xl': '1536px',
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -530,7 +530,7 @@ const config = {
 ```### Extending Default Theme
 
 Merge with the default theme:```typescript
-import { defaultConfig } from '@ts-css/core'
+import { defaultConfig } from '@stacksjs/ts-css/engine'
 
 const config = {
   theme: {

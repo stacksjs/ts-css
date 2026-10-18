@@ -30,7 +30,7 @@ Add the`:tc:`trigger to mark utility groups for compilation:```html
 
 Configure the transformer in your config:```typescript
 // css.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 const config = {
   content: ['./src/**/*.{html,js,ts,jsx,tsx}'],
@@ -41,7 +41,7 @@ const config = {
     trigger: ':tc:', // Trigger string (default)
     classPrefix: 'tc-', // Prefix for generated names (default)
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 export default config
 
@@ -84,7 +84,7 @@ const config = {
   compileClass: {
     enabled: true, // Enable compile class transformer
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```### Custom Trigger
 
@@ -94,7 +94,7 @@ const config = {
     enabled: true,
     trigger: ':compile:', // Use custom trigger
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```Usage:```html
 
 <div class=":compile: flex items-center p-4">Content</div>
@@ -107,7 +107,7 @@ const config = {
     enabled: true,
     classPrefix: 'c-', // Use 'c-' prefix instead of 'tc-'
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```Generated classes:`c-abc123`, `c-def456`, etc.
 
 ### Layer Configuration
@@ -120,7 +120,7 @@ const config = {
     enabled: true,
     layer: 'components', // Use 'components' layer
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 ```
 
 ## Benefits

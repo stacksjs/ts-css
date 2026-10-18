@@ -1,2 +1,2 @@
 #!/usr/bin/env bun
-import('./packages/ts-css/bin/cli')
+import('./packages/toolkit/bin/cssx.ts')

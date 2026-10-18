@@ -1,11 +1,11 @@
-# Crosswind Bun Plugin
+# ts-css Bun Plugin
 
-A Bun plugin that automatically generates and injects Crosswind CSS into your HTML files during the build process.
+A Bun plugin that automatically generates and injects ts-css CSS into your HTML files during the build process.
 
 ## Installation
 
 ```bash
-bun add @ts-css/core
+bun add @stacksjs/ts-css
 ```
 
 ## Quick Start**1. Create your HTML file**(`src/template.html`)
@@ -18,7 +18,7 @@ bun add @ts-css/core
 </head>
 <body>
   <div class="flex items-center p-4 bg-blue-500 text-white rounded-lg">
-    <h1 class="text-2xl font-bold">Hello Crosswind!</h1>
+    <h1 class="text-2xl font-bold">Hello ts-css!</h1>
   </div>
 </body>
 </html>
@@ -27,12 +27,12 @@ bun add @ts-css/core
 ```typescript
 import template from './template.html'
 
-// The HTML now has Crosswind CSS injected
+// The HTML now has ts-css CSS injected
 document.body.innerHTML = template
 ```**3. Build with the plugin**:
 
 ```typescript
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -49,7 +49,7 @@ await Bun.build({
 
 ### Basic Configuration```typescript
 
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -62,7 +62,7 @@ await Bun.build({
 })
 
 ```### Custom Theme```typescript
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -92,7 +92,7 @@ await Bun.build({
 })
 ```### Advanced Configuration```typescript
 
-import { plugin } from '@ts-css/core'
+import { plugin } from '@stacksjs/ts-css/engine'
 
 await Bun.build({
   entrypoints: ['./src/index.ts'],
@@ -126,11 +126,11 @@ await Bun.build({
 
 ### `plugin(options?)`
 
-Creates a Crosswind Bun plugin instance.
+Creates a ts-css Bun plugin instance.
 
 #### Options
 
--**`config`**(`Partial<TsCssConfig>`) - Custom Crosswind configuration
+-**`config`**(`Partial<CssConfig>`) - Custom ts-css configuration
 
   - `minify`- Minify the generated CSS
 
@@ -148,8 +148,8 @@ Creates a Crosswind Bun plugin instance.
 
 1. The plugin registers an `onLoad`handler for`.html`files
 2. When Bun encounters an HTML import, the plugin intercepts it
-3. It extracts all utility classes from the HTML using Crosswind's parser
-4. It generates CSS for those classes using Crosswind's generator
+3. It extracts all utility classes from the HTML using ts-css's parser
+4. It generates CSS for those classes using ts-css's generator
 5. The CSS is injected into the`<head>`section
 6. The processed HTML is returned to the bundle
 
@@ -186,18 +186,18 @@ The plugin is highly performant:
 ## TypeScript Support
 
 The plugin is fully typed. Import the types:```typescript
-import type { TsCssPluginOptions } from '@ts-css/core'
+import type { CssPluginOptions } from '@stacksjs/ts-css/engine'
 
-const options: TsCssPluginOptions = {
+const options: CssPluginOptions = {
   config: {
     minify: true,
   },
 }
 ```## Configuration File
 
-The plugin also respects`crosswind.config.ts`in your project root:```typescript
-// crosswind.config.ts
-import type { TsCssOptions } from '@ts-css/core'
+The plugin also respects`css.config.ts`in your project root:```typescript
+// css.config.ts
+import type { CssOptions } from '@stacksjs/ts-css/engine'
 
 export default {
   minify: true,
@@ -206,7 +206,7 @@ export default {
       primary: '#3b82f6',
     },
   },
-} satisfies TsCssOptions
+} satisfies CssOptions
 
 ```
 
