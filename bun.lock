@@ -11,7 +11,7 @@
     },
     "packages/toolkit": {
       "name": "@stacksjs/ts-css",
-      "version": "0.3.16",
+      "version": "0.3.17",
       "bin": {
         "ts-css": "./dist/bin/cli.js",
         "cssx": "./dist/bin/cssx.js",
@@ -34,7 +34,7 @@
     },
     "packages/vscode": {
       "name": "@ts-css/vscode",
-      "version": "0.3.16",
+      "version": "0.3.17",
     },
   },
   "overrides": {

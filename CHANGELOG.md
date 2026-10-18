@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.16...v0.3.17)
+
+## 🐛 Bug Fixes
+
+- align ts-css guidance and CLI with published engine ([3f09c3d](https://github.com/stacksjs/ts-css/commit/3f09c3d)) _(by Chris Breuer <chris@stacksjs.com>)_
+
+## 🔧 Chores
+
+- release v0.3.17 ([4573be9](https://github.com/stacksjs/ts-css/commit/4573be9)) _(by Chris Breuer <chris@stacksjs.com>)_
+
+## Contributors
+
+- _Chris Breuer <chris@stacksjs.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.15...v0.3.16)
 
 ## 🐛 Bug Fixes
