@@ -2238,15 +2238,21 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
         break
       }
       if (multiline && char === '$' && content[j + 1] === '{') {
-        // Skip the interpolation, tracking nesting so an object literal or a
-        // nested template inside it does not end the hole early.
+        // Find the end of the interpolation, tracking nesting so an object
+        // literal or a nested template inside it does not end the hole early.
         let depth = 1
         j += 2
+        const holeStart = j
         while (j < length && depth > 0) {
           if (content[j] === '{') depth++
           else if (content[j] === '}') depth--
           j++
         }
+        // The hole is code rather than part of this literal, but code holds
+        // literals of its own: `${{ success: 'text-green-500' }[type]}` is how
+        // a toast or badge helper usually keys its classes.
+        for (const token of extractCodeStringCandidates(content.slice(holeStart, j - 1), bracketConfig))
+          tokens.add(token)
         literal += ' '
         continue
       }

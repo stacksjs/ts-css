@@ -52,6 +52,21 @@ describe('code-string extraction', () => {
     expect(classes.has('${variant.icon}')).toBe(false)
   })
 
+  it('reads the string literals inside an interpolation', () => {
+    // The hole is code, and code holds literals of its own. A status-keyed
+    // lookup inside the hole is the usual shape of a toast or badge helper.
+    const source = 'const icon = type => `flex-shrink-0 ${{ success: "text-green-500 ring-green-500/20", error: \'text-red-500\' }[type] || `text-gray-500 ${muted}`}`'
+    const classes = extractClasses(source)
+
+    expect(classes.has('flex-shrink-0')).toBe(true)
+    expect(classes.has('text-green-500')).toBe(true)
+    expect(classes.has('ring-green-500/20')).toBe(true)
+    expect(classes.has('text-red-500')).toBe(true)
+    // A template nested in the hole is read the same way.
+    expect(classes.has('text-gray-500')).toBe(true)
+    expect(classes.has('muted')).toBe(false)
+  })
+
   it('keeps arbitrary values intact', () => {
     const source = `const cls = 'text-[13px] bg-[#f7f5f1] shadow-[0_1px_2px_rgba(0,0,0,0.08)]'`
     const classes = extractClasses(source)
