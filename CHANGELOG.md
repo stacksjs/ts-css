@@ -1,3 +1,14 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.17...v0.3.18)
+
+## 🐛 Bug Fixes
+
+- **extractor**: read the string literals inside a template interpolation ([28215d2](https://github.com/stacksjs/ts-css/commit/28215d2)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([stacksjs/stacks#2974](https://github.com/stacksjs/stacks/issues/2974))
+- **extractor**: read `/` after a keyword as the start of a regex ([1dcbfdb](https://github.com/stacksjs/ts-css/commit/1dcbfdb)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([stacksjs/stacks#2974](https://github.com/stacksjs/stacks/issues/2974))
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.16...v0.3.17)
 
 ## 🐛 Bug Fixes
