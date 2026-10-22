@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.18...v0.3.19)
+
+## 🐛 Bug Fixes
+
+- **engine**: expand a shortcut used behind a variant ([d2a6366](https://github.com/stacksjs/ts-css/commit/d2a6366)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.19 ([195a0d5](https://github.com/stacksjs/ts-css/commit/195a0d5)) _(by Chris <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.17...v0.3.18)
 
 ## 🐛 Bug Fixes
