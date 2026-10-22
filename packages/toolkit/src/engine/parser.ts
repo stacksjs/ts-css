@@ -926,7 +926,7 @@ function configFingerprint(config?: BracketSyntaxConfig): string {
  * identical, so a plain `split(':')` would tear `[color:red]` in half. Both the
  * arbitrary-property branch and the general variant/utility split need this.
  */
-function splitTopLevelColons(className: string): string[] {
+export function splitTopLevelColons(className: string): string[] {
   const parts: string[] = []
   let current = ''
   let bracketDepth = 0

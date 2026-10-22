@@ -462,6 +462,123 @@ describe('CSSGenerator', () => {
       expect(css).toContain('.card {')
       expect(css).toContain('.card:hover {')
     })
+
+    // A shortcut used behind a variant (`md:card`) used to emit nothing: only
+    // the exact class name was looked up, so the variant-prefixed name fell
+    // through to the utility rules and matched none of them.
+    describe('used behind a variant', () => {
+      const shortcuts = {
+        'card': 'bg-white dark:bg-slate-900 border rounded-xl p-5 hover:shadow-lg',
+        'btn': 'px-4 hover:bg-blue-700',
+        'btn-lg': 'btn py-3',
+      }
+      const cssFor = (...classes: string[]): string => {
+        const gen = new CSSGenerator({ ...defaultConfig, shortcuts })
+        for (const cls of classes)
+          gen.generate(cls)
+        return gen.toCSS(false)
+      }
+      const mediaBlock = (css: string, query: string): string => {
+        const start = css.indexOf(`@media ${query} {`)
+        expect(start).toBeGreaterThan(-1)
+        // A media block closes with its last rule's brace and then its own.
+        const end = css.indexOf('}\n}', start)
+        return css.slice(start, end === -1 ? undefined : end + 3)
+      }
+
+      it('emits a responsive shortcut inside the breakpoint, on its own selector', () => {
+        const css = cssFor('md:card')
+        const md = mediaBlock(css, '(min-width: 768px)')
+        expect(md).toContain('.md\\:card {')
+        expect(md).toContain('background-color: #fff;')
+        expect(md).toContain('border-radius: 0.75rem;')
+        expect(md).toContain('padding: 1.25rem;')
+        // Nothing leaks outside the media query, and no sub-utility selector
+        // the markup never carries.
+        expect(css.slice(0, css.indexOf('@media'))).toBe('')
+        expect(css).not.toContain('.md\\:p-5')
+        expect(css).not.toContain('.md\\:bg-white')
+      })
+
+      it('supports max-* breakpoints', () => {
+        const md = mediaBlock(cssFor('max-md:card'), '(max-width: 767.98px)')
+        expect(md).toContain('.max-md\\:card {')
+        expect(md).toContain('padding: 1.25rem;')
+      })
+
+      it('combines the outer variant with variants inside the definition', () => {
+        const md = mediaBlock(cssFor('md:card'), '(min-width: 768px)')
+        // dark:bg-slate-900 applies only at md AND dark.
+        expect(md).toContain('.dark .md\\:card {')
+        expect(md).toContain('.md\\:card:hover {')
+      })
+
+      it('applies state and dark variants to the shortcut selector', () => {
+        const hover = cssFor('hover:card')
+        expect(hover).toContain('.hover\\:card:hover {')
+        expect(hover).toContain('padding: 1.25rem;')
+
+        const dark = cssFor('dark:card')
+        expect(dark).toContain('.dark .dark\\:card {')
+        expect(dark).toContain('padding: 1.25rem;')
+        expect(dark).not.toContain('.dark\\:card {\n  padding')
+      })
+
+      it('accepts stacked variants in either order', () => {
+        for (const cls of ['md:dark:card', 'dark:md:card']) {
+          const md = mediaBlock(cssFor(cls), '(min-width: 768px)')
+          expect(md).toContain(`.dark .${cls.replace(/:/g, '\\:')} {`)
+          expect(md).toContain('padding: 1.25rem;')
+        }
+      })
+
+      it('flattens nested shortcuts onto the variant selector', () => {
+        const md = mediaBlock(cssFor('md:btn-lg'), '(min-width: 768px)')
+        expect(md).toContain('.md\\:btn-lg {')
+        expect(md).toContain('padding-left: 1rem;')
+        expect(md).toContain('padding-top: 0.75rem;')
+        expect(md).toContain('.md\\:btn-lg:hover {')
+      })
+
+      it('carries the important modifier in each supported position', () => {
+        for (const cls of ['!card', 'md:!card', 'md:card!', '!md:card']) {
+          const css = cssFor(cls)
+          expect(css).toContain('padding: 1.25rem !important;')
+          expect(css).toContain('border-radius: 0.75rem !important;')
+          expect(css).not.toContain('!important !important')
+        }
+        expect(cssFor('!card')).toContain('.\\!card {')
+        expect(mediaBlock(cssFor('md:!card'), '(min-width: 768px)')).toContain('.md\\:\\!card {')
+      })
+
+      it('expands a variant-prefixed shortcut inside another definition', () => {
+        const gen = new CSSGenerator({
+          ...defaultConfig,
+          shortcuts: { 'tile': 'p-2 hover:raised', 'raised': 'shadow-lg', 'loop': 'p-1 hover:loop' },
+        })
+        gen.generate('tile')
+        gen.generate('md:loop')
+        const css = gen.toCSS(false)
+        expect(css).toContain('.tile {')
+        expect(css).toContain('.tile:hover {')
+        expect(css).not.toContain('.hover\\:raised')
+        // A shortcut that names itself behind a variant still terminates.
+        expect(mediaBlock(css, '(min-width: 768px)')).toContain('.md\\:loop {')
+      })
+
+      it('generates nothing for an unknown base after a variant', () => {
+        expect(cssFor('md:not-a-shortcut')).toBe('')
+        expect(cssFor('hover:cardx')).toBe('')
+      })
+
+      it('keeps the plain shortcut unchanged next to its variant form', () => {
+        const css = cssFor('card', 'md:card')
+        expect(css).toContain('.card {')
+        expect(css).toContain('.card:hover {')
+        expect(css).toContain('.dark .card {')
+        expect(mediaBlock(css, '(min-width: 768px)')).toContain('.md\\:card {')
+      })
+    })
   })
 
   describe('Blocklist', () => {

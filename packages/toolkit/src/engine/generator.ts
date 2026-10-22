@@ -1,7 +1,7 @@
 import type { CSSRule, CssConfig, ParsedClass, UtilityRuleResult } from './types'
 import type { UtilityRule } from './rules'
 import { minifyBlock } from '../optimize'
-import { parseClass } from './parser'
+import { parseClass, splitTopLevelColons } from './parser'
 import { defaultConfig } from './config'
 import { builtInRules } from './rules'
 import { TRANSFORM_2D, TRANSFORM_3D } from './rules-transforms'
@@ -2207,9 +2207,57 @@ export class CSSGenerator {
         this.expandShortcut(className, shortcut, new Set([className]))
         return
       }
+      // A shortcut behind variants or the important marker (`md:card`,
+      // `hover:!btn`): only the exact name used to be looked up, so these
+      // fell through to the utility rules and emitted nothing.
+      const variantShortcut = this.resolveVariantShortcut(className)
+      if (variantShortcut) {
+        const { base, prefix, important } = variantShortcut
+        this.expandShortcut(className, this.config.shortcuts[base], new Set([base]), prefix, important)
+        return
+      }
     }
 
     this.generateUtility(className)
+  }
+
+  /**
+   * Split a class that names a shortcut behind variants and/or the important
+   * marker into the shortcut's name, the variant prefix to put in front of
+   * each of its utilities (`md:dark:`), and whether they are important.
+   * Returns undefined when the class is not such a shortcut, which includes
+   * every plain utility: the common case leaves after one character scan.
+  */
+  private resolveVariantShortcut(className: string): { base: string, prefix: string, important: boolean } | undefined {
+    if (!className.includes(':') && !className.includes('!'))
+      return undefined
+
+    let important = false
+    let name = className
+    if (name.charCodeAt(0) === 33) { // '!' prefix: `!md:card`
+      important = true
+      name = name.slice(1)
+    }
+    else if (name.length > 1 && name.charCodeAt(name.length - 1) === 33) { // '!' suffix: `md:card!`
+      important = true
+      name = name.slice(0, -1)
+    }
+
+    const segments = splitTopLevelColons(name)
+    let base = segments[segments.length - 1]
+    if (!important && base.length > 1 && base.charCodeAt(0) === 33) { // `md:!card`
+      important = true
+      base = base.slice(1)
+    }
+    if (base === className || !Object.hasOwn(this.config.shortcuts, base))
+      return undefined
+
+    const variants = segments.slice(0, -1)
+    return {
+      base,
+      prefix: variants.length > 0 ? `${variants.join(':')}:` : '',
+      important,
+    }
   }
 
   /**
@@ -2218,8 +2266,14 @@ export class CSSGenerator {
    * or media-query rules on that selector (`.btn:hover`, `@media ... .btn`)
    * instead of being emitted under selectors the markup doesn't carry.
    * Nested shortcuts flatten onto the outermost selector; `seen` breaks cycles.
+   *
+   * A shortcut used behind variants (`md:card`) passes them as `prefix`:
+   * each utility is generated as `md:<utility>` on the `md:card` selector,
+   * so the definition's own variants combine with the outer ones
+   * (`dark:bg-slate-900` in `md:card` applies at md AND dark). `important`
+   * marks every utility important, as `!card` / `md:card!` ask.
   */
-  private expandShortcut(name: string, shortcut: string | string[], seen: Set<string>): void {
+  private expandShortcut(name: string, shortcut: string | string[], seen: Set<string>, prefix = '', important = false): void {
     const classes = Array.isArray(shortcut) ? shortcut : shortcut.split(/\s+/)
     const prev = this.shortcutSelectorRaw
     this.shortcutSelectorRaw = name
@@ -2230,11 +2284,24 @@ export class CSSGenerator {
       if (nested) {
         if (!seen.has(cls)) {
           seen.add(cls)
-          this.expandShortcut(name, nested, seen)
+          this.expandShortcut(name, nested, seen, prefix, important)
         }
         continue
       }
-      this.generateUtility(cls)
+      // A nested shortcut can itself sit behind variants (`hover:btn`).
+      const nestedVariant = this.resolveVariantShortcut(cls)
+      if (nestedVariant) {
+        if (!seen.has(nestedVariant.base)) {
+          seen.add(nestedVariant.base)
+          this.expandShortcut(name, this.config.shortcuts[nestedVariant.base], seen, prefix + nestedVariant.prefix, important || nestedVariant.important)
+          seen.delete(nestedVariant.base)
+        }
+        continue
+      }
+      let utility = prefix === '' ? cls : prefix + cls
+      if (important && !parseClass(utility).important)
+        utility += '!'
+      this.generateUtility(utility)
     }
     this.shortcutSelectorRaw = prev
   }
