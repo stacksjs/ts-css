@@ -194,6 +194,38 @@ describe('code-string extraction past comments and regexes', () => {
     expect(classes.has('px-4')).toBe(true)
   })
 
+  // A word before `/` usually means division (`total / 2`), but not when the
+  // word is a keyword: `return /"/.test(s)` is a regex. Reading it as division
+  // let its quote open a "string" that put a later backtick out of step, and
+  // the resulting "template" swallowed every class up to the next real one.
+  // A dashboard table's CSV escape did exactly this (stacksjs/stacks#2974).
+  it('reads a regex after a keyword as a regex', () => {
+    const source = [
+      'function csv(text) { return /[",\\n]/.test(text) ? `"${text}"` : text }',
+      'const badge = "text-green-700 dark:bg-green-950/30"',
+      'const later = `x`',
+    ].join('\n')
+    const classes = extractClasses(source)
+    expect(classes.has('text-green-700')).toBe(true)
+    expect(classes.has('dark:bg-green-950/30')).toBe(true)
+  })
+
+  it('reads a regex after every keyword that can precede an expression', () => {
+    for (const keyword of ['return', 'typeof', 'case', 'in', 'of', 'delete', 'void', 'throw', 'new', 'else', 'do', 'yield', 'await', 'instanceof']) {
+      const source = `${keyword} /"/.test(t) ? \`"x"\` : t\nconst tone = "text-rose-600"\nconst later = \`y\``
+      expect([keyword, extractClasses(source).has('text-rose-600')]).toEqual([keyword, true])
+    }
+  })
+
+  it('still reads division after an identifier that merely ends like a keyword', () => {
+    // `turnin / 2` and `obj.return / 2` are division; neither may swallow the
+    // literal that follows as the body of a regex.
+    for (const source of [`const r = turnin / 2; const c = 'gap-3 mt-2'; const x = y / 3`, `const r = obj.return / 2; const c = 'gap-3 mt-2'; const x = y / 3`]) {
+      const classes = extractClasses(source)
+      expect(classes.has('gap-3')).toBe(true)
+    }
+  })
+
   it('still reads division as division', () => {
     const classes = extractClasses(`const half = total / 2; const c = 'gap-3 mt-2'; const r = a / b`)
     expect(classes.has('gap-3')).toBe(true)

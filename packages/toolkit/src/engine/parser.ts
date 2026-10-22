@@ -2194,7 +2194,7 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
       i = end === -1 ? length : end + 2
       continue
     }
-    if (quote === '/' && !/[\w$)\]]/.test(lastSig)) {
+    if (quote === '/' && (!/[\w$)\]]/.test(lastSig) || followsRegexKeyword(content, i))) {
       const end = regexLiteralEnd(content, i)
       if (end !== -1) {
         i = end
@@ -2276,6 +2276,32 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
   }
 
   return tokens
+}
+
+/**
+ * Keywords after which `/` starts a regex literal rather than dividing.
+ */
+const REGEX_KEYWORDS = new Set(['return', 'typeof', 'case', 'in', 'of', 'delete', 'void', 'throw', 'new', 'else', 'do', 'yield', 'await', 'instanceof'])
+
+/**
+ * Whether the word just before the `/` at `slash` is one of `REGEX_KEYWORDS`.
+ *
+ * A word before `/` is usually an operand (`total / 2`), which is why the
+ * scanner reads it as division. A keyword is the exception: in
+ * `return /"/.test(s)` the `/` opens a regex, and reading it as division lets
+ * the quote inside open a "string" (stacksjs/stacks#2974). A property access
+ * such as `obj.return / 2` is still an operand.
+ */
+function followsRegexKeyword(content: string, slash: number): boolean {
+  let end = slash
+  while (end > 0 && /\s/.test(content[end - 1]!)) end--
+  let start = end
+  while (start > 0 && /[\w$]/.test(content[start - 1]!)) start--
+  if (start === end || !REGEX_KEYWORDS.has(content.slice(start, end)))
+    return false
+  let before = start
+  while (before > 0 && /\s/.test(content[before - 1]!)) before--
+  return content[before - 1] !== '.'
 }
 
 /**
