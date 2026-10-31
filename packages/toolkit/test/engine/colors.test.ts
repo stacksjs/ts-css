@@ -1190,6 +1190,27 @@ describe('colorVariables: a palette read through CSS variables', () => {
     expect(css).toContain(`background-color: color-mix(in srgb, var(--color-slate-900, ${slate900}) 40%, transparent);`)
   })
 
+  it('reads the variable for the palettes the fast path serves too (blue, red, gray…)', () => {
+    // bg-, text- and border- on the built-in palette took a lookup table that
+    // never consulted colorVariables, so blue stayed plain while slate did not.
+    const blue600 = 'oklch(54.6% 0.245 262.881)'
+    const css = compile(['bg-blue-600', 'text-blue-600', 'border-blue-600', 'ring-blue-500', 'bg-blue-600/10', 'bg-red-500', 'bg-gray-100'], ['blue', 'gray'])
+    expect(css).toContain(`background-color: var(--color-blue-600, ${blue600});`)
+    expect(css).toContain(`color: var(--color-blue-600, ${blue600});`)
+    expect(css).toContain(`border-color: var(--color-blue-600, ${blue600});`)
+    expect(css).toContain('var(--color-blue-500, ')
+    expect(css).toContain(`background-color: color-mix(in srgb, var(--color-blue-600, ${blue600}) 10%, transparent);`)
+    expect(css).toContain('background-color: var(--color-gray-100, ')
+    // Red is not listed, so it stays its value.
+    expect(css).toContain('background-color: oklch(63.7% 0.237 25.331);')
+  })
+
+  it('keeps each variable list apart for configs that share a theme', () => {
+    expect(compile(['bg-blue-600'], ['blue'])).toContain('var(--color-blue-600, ')
+    expect(compile(['bg-blue-600'], ['slate'])).not.toContain('var(--color-blue-600')
+    expect(compile(['bg-blue-600'])).not.toContain('var(--color-blue-600')
+  })
+
   it('leaves other palettes, and every palette without the option, as plain values', () => {
     expect(compile(['bg-blue-500'], ['slate'])).toContain('background-color: oklch(62.3% 0.214 259.815);')
     expect(compile(['bg-slate-900'])).toContain(`background-color: ${slate900};`)

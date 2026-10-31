@@ -3,7 +3,7 @@ import type { UtilityRule } from './rules'
 import { minifyBlock } from '../optimize'
 import { parseClass, splitTopLevelColons } from './parser'
 import { defaultConfig } from './config'
-import { builtInRules } from './rules'
+import { builtInRules, themeColorValue } from './rules'
 import { TRANSFORM_2D, TRANSFORM_3D } from './rules-transforms'
 import { fractionToPercent } from './format'
 import { BOX_SHADOW_LAYERS } from './shadow-layers'
@@ -1777,7 +1777,7 @@ const processedConfigCache = new WeakMap<CssConfig, ProcessedConfig>()
  * Safe to share because every one of these is read-only after construction.
  */
 const spacingValuesCache = new WeakMap<object, Record<string, string>>()
-const commonColorsCache = new WeakMap<object, Record<string, string>>()
+const commonColorsCache = new WeakMap<object, Map<string, Record<string, string>>>()
 const skipStaticRadiusCache = new WeakMap<object, boolean>()
 const skipStaticShadowCache = new WeakMap<object, boolean>()
 const screenBreakpointsCache = new WeakMap<object, Map<string, string>>()
@@ -1801,10 +1801,26 @@ function resolveSpacingValues(spacing: Record<string, string>): Record<string, s
   return result
 }
 
+/** The palette a fast-path colour key belongs to: `blue-600` is blue's, `white` is its own. */
+function commonColorPalette(key: string): string {
+  const dash = key.lastIndexOf('-')
+  return dash > 0 && /^\d+$/.test(key.slice(dash + 1)) ? key.slice(0, dash) : key
+}
+
+/**
+ * The fast path's colour table for a theme: the built-in palette re-based on
+ * the theme's own values, with every palette named in `colorVariables`
+ * written as the colour rule writes it (`var(--color-blue-600, <value>)`).
+ * Without that, `bg-blue-600` skipped the variable while `bg-slate-600`,
+ * which is not in the built-in table, honoured it.
+ */
 function resolveCommonColors(
   colors: Record<string, string | Record<string, string>>,
+  variables?: readonly string[],
 ): Record<string, string> {
-  const cached = commonColorsCache.get(colors)
+  const variablesKey = variables?.length ? variables.join('\u0000') : ''
+  let byVariables = commonColorsCache.get(colors)
+  const cached = byVariables?.get(variablesKey)
   if (cached)
     return cached
 
@@ -1834,8 +1850,24 @@ function resolveCommonColors(
     }
   }
 
-  const result = diffs ? { ...COMMON_COLORS, ...diffs } : COMMON_COLORS
-  commonColorsCache.set(colors, result)
+  let result = diffs ? { ...COMMON_COLORS, ...diffs } : COMMON_COLORS
+  if (variablesKey) {
+    let wrapped: Record<string, string> | null = null
+    for (const key in result) {
+      const palette = commonColorPalette(key)
+      if (!variables!.includes(palette))
+        continue
+      wrapped ??= { ...result }
+      wrapped[key] = themeColorValue(key, result[key]!, palette, variables)
+    }
+    if (wrapped)
+      result = wrapped
+  }
+  if (!byVariables) {
+    byVariables = new Map()
+    commonColorsCache.set(colors, byVariables)
+  }
+  byVariables.set(variablesKey, result)
   return result
 }
 
@@ -1983,7 +2015,7 @@ function processConfig(config: CssConfig): ProcessedConfig {
   // Each is memoised on the theme sub-object it derives from, so a config
   // that reuses the default theme pays nothing here.
   const spacingValues = resolveSpacingValues(config.theme.spacing)
-  const commonColors = resolveCommonColors(config.theme.colors)
+  const commonColors = resolveCommonColors(config.theme.colors, config.colorVariables)
 
   // Radius/shadow static entries can't be patched cheaply (multi-property
   // outputs), so a customized theme skips the static map and lets the
