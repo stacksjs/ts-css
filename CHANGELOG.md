@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.20...v0.3.21)
+
+## 🐛 Bug Fixes
+
+- **engine**: honour colorVariables on the common-colour fast path ([a2e35a8](https://github.com/stacksjs/ts-css/commit/a2e35a8)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.21 ([c286fde](https://github.com/stacksjs/ts-css/commit/c286fde)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris Breuer <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.19...v0.3.20)
 
 ## 🐛 Bug Fixes
