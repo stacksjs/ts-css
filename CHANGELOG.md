@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.19...v0.3.20)
+
+## 🐛 Bug Fixes
+
+- **engine**: read an icon class named by any markup attribute, not only class ([617955b](https://github.com/stacksjs/ts-css/commit/617955b)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.20 ([6920a97](https://github.com/stacksjs/ts-css/commit/6920a97)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris Breuer <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.18...v0.3.19)
 
 ## 🐛 Bug Fixes
