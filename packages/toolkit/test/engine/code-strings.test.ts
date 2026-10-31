@@ -246,3 +246,34 @@ describe('code-string extraction past comments and regexes', () => {
     expect(classes.has('gap-3')).toBe(true)
   })
 })
+
+describe('icons named by a component prop', () => {
+  it('takes an icon class out of any attribute, not only class', () => {
+    const classes = extractClasses(`<MoreMenu icon="i-hugeicons-settings-02"><EmptyState icon="i-hugeicons-note-01" text="Nothing"/></MoreMenu>`)
+
+    expect(classes.has('i-hugeicons-settings-02')).toBe(true)
+    expect(classes.has('i-hugeicons-note-01')).toBe(true)
+  })
+
+  it('takes one quoted inside a binding', () => {
+    const classes = extractClasses(`<Row :icon="done ? 'i-hugeicons-tick-02' : 'i-hugeicons-circle'" />`)
+
+    expect(classes.has('i-hugeicons-tick-02')).toBe(true)
+    expect(classes.has('i-hugeicons-circle')).toBe(true)
+  })
+
+  it('still ignores every other attribute value', () => {
+    const classes = extractClasses(`<a href="/p/ab-cd-ef" data-token="abc-123-xyz" title="bg-red-500 shadow-lg">x</a>`)
+
+    expect(classes.has('ab-cd-ef')).toBe(false)
+    expect(classes.has('abc-123-xyz')).toBe(false)
+    expect(classes.has('bg-red-500')).toBe(false)
+  })
+
+  it('does not take a word that merely contains i-', () => {
+    const classes = extractClasses(`<a title="semi-colon wi-fi pi-day">x</a>`)
+
+    expect(classes.has('i-colon')).toBe(false)
+    expect(classes.has('fi')).toBe(false)
+  })
+})

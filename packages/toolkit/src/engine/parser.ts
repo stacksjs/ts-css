@@ -2267,6 +2267,14 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
       // payloads as code strings creates phantom utility classes and can make
       // a classless fragment emit an entire preflight stylesheet.
       if (markupAttribute) {
+        // The one thing a prop value is allowed to name is an icon. A
+        // component takes its glyph as an attribute (`<EmptyState icon="i-...">`),
+        // and a rule that exists nowhere else on the page was never generated:
+        // the icon rendered as an empty box. An icon token cannot be a CSRF
+        // token, URL or v-html payload, and the generator only emits it when the
+        // icon exists, so reading it creates no phantom rule.
+        for (const token of literal.match(ICON_TOKEN) ?? [])
+          tokens.add(token)
         i = j
         continue
       }
@@ -2336,6 +2344,12 @@ function regexLiteralEnd(content: string, start: number): number {
   }
   return -1
 }
+
+/**
+ * `i-<collection>-<name>`, however it is spelled inside a markup attribute:
+ * bare (`icon="i-lucide-x"`) or quoted inside a binding (`:icon="'i-lucide-x'"`).
+ */
+const ICON_TOKEN = /(?<![\w-])i-[a-z0-9]+(?:-[a-z0-9]+)+(?![\w-])/gi
 
 function isMarkupAttributeString(content: string, quoteIndex: number): boolean {
   const tagStart = content.lastIndexOf('<', quoteIndex)
