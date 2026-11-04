@@ -130,6 +130,15 @@ export interface CssConfig {
    * Enabled by default; see `CodeStringsConfig` in the parser.
    */
   codeStrings?: CodeStringsConfig
+  /**
+   * An authored stylesheet to process and emit alongside the utilities.
+   *
+   * Its `@apply` expands to the declarations the named utilities produce and
+   * its `theme()` reads the registered theme, so component CSS goes through
+   * the same pipeline as everything else instead of living in a `preflights`
+   * string the engine never reads. Nesting is passed through as written.
+   */
+  input?: string
   /** Generate :root CSS variables from theme colors (e.g., --monokai-bg: #2d2a2e) */
   cssVariables?: boolean
   /**

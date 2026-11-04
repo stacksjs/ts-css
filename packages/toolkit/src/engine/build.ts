@@ -2,6 +2,7 @@ import type { CssConfig } from './types'
 import { CSSGenerator } from './generator'
 import { resolveSafelist } from './safelist'
 import { Scanner } from './scanner'
+import { containsApply, processStylesheet } from './stylesheet'
 import { collectStyles } from './style/collect'
 import { resetStyles } from './style/registry'
 import { CompileClassTransformer } from './transformer-compile-class'
@@ -64,8 +65,33 @@ export async function build(config: CssConfig): Promise<BuildResult> {
     }
   }
 
+  // A preflight is shipped verbatim, so an `@apply` in one reaches the
+  // browser as an unknown at-rule and is dropped there without a word. Say so
+  // rather than leaving the author to find it in devtools.
+  if (config.includePreflight !== false) {
+    for (const preflight of config.preflights) {
+      if (containsApply(preflight.getCSS())) {
+        console.warn('⚠️  @apply in a preflight is not expanded and will not reach the browser. Put the CSS in the `input` stylesheet instead.')
+        break
+      }
+    }
+  }
+
   // Preflight CSS is now added by generator.toCSS()
   let css = generator.toCSS(config.includePreflight !== false, config.minify)
+
+  // The authored stylesheet goes after the utilities, so a rule written by
+  // hand beats a utility of equal specificity -- which is the reason to have
+  // written it there.
+  if (config.input) {
+    const source = await Bun.file(config.input).text()
+    const processed = processStylesheet(source, generator, config.theme)
+    for (const utility of processed.unknownUtilities)
+      console.warn(`⚠️  @apply ${utility}: not a utility this config generates (${config.input})`)
+    for (const path of processed.unknownThemePaths)
+      console.warn(`⚠️  theme(${path}): no such value in the theme (${config.input})`)
+    css += `\n${processed.css}`
+  }
 
   // Styles declared through the `css.create()` API live in modules, not in
   // class attributes, so the scanner never sees them. Evaluating those modules
