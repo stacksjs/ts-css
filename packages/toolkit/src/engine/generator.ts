@@ -1645,6 +1645,37 @@ function ancestorConditionSelector(token: string): string | undefined {
   return known !== undefined && !known.startsWith('::') ? known : undefined
 }
 
+/**
+ * Split the `/name` a named group or peer variant ends with.
+ *
+ * `group-hover/section` asks about an ancestor carrying `group/section`, so
+ * the name belongs to that ancestor's class and the pseudo-class follows it:
+ * `.group\/section:hover`. Appending the name to the variant instead gives
+ * `.group:hover/section`, which no browser parses, so the rule is dropped and
+ * whatever it was meant to override keeps winning.
+ *
+ * Only a `/` at bracket depth zero separates a name. Inside `[...]` or
+ * `(...)` it belongs to an arbitrary value -- `group-[&_.w-1\/2]:underline`
+ * carries a fraction, not a group name -- and the last separator wins, since
+ * the name itself cannot contain one.
+ */
+function splitVariantGroupName(token: string): { base: string, name: string } {
+  let depth = 0
+  let at = -1
+  for (let i = 0; i < token.length; i++) {
+    const code = token.charCodeAt(i)
+    if (code === 91 || code === 40) // '[' or '('
+      depth++
+    else if (code === 93 || code === 41) // ']' or ')'
+      depth--
+    else if (code === 47 && depth === 0) // '/'
+      at = i
+  }
+  if (at === -1)
+    return { base: token, name: '' }
+  return { base: token.slice(0, at), name: token.slice(at + 1) }
+}
+
 // Pre-computed prefix variants (these modify the selector prefix, not suffix)
 // Minify a static CSS block: strip comments, then collapse whitespace
 // around syntax characters. Used for preflight and keyframes, which were
@@ -3173,19 +3204,22 @@ export class CSSGenerator {
       // Handle group-* variants (with optional named group: group/name-hover)
       if (variant.charCodeAt(0) === 103 && variant.startsWith('group-')) { // 'g' = 103
         if (this.variantEnabled.group) {
-          const groupVariant = variant.slice(6)
+          // A named group (group-hover/section) names the ancestor's class,
+          // so the name is split off before the variant is read.
+          const { base: groupVariant, name } = splitVariantGroupName(variant.slice(6))
+          const group = name ? `.group\\/${name}` : '.group'
           // group-has-* needs special handling: group-has-[:checked] -> .group:has(:checked)
           if (groupVariant.startsWith('has-')) {
             const hasValue = groupVariant.slice(4)
             if (hasValue.charCodeAt(0) === 91 && hasValue.charCodeAt(hasValue.length - 1) === 93) {
-              prefix = `.group:has(${hasValue.slice(1, -1)}) `
+              prefix = `${group}:has(${hasValue.slice(1, -1)}) `
             }
             else {
-              prefix = `.group:has(:${hasValue}) `
+              prefix = `${group}:has(:${hasValue}) `
             }
           }
           else {
-            prefix = `.group:${groupVariant} `
+            prefix = `${group}:${groupVariant} `
           }
         }
         continue
@@ -3202,19 +3236,21 @@ export class CSSGenerator {
       // Handle peer-* variants (with optional named peer)
       if (variant.charCodeAt(0) === 112 && variant.startsWith('peer-')) { // 'p' = 112
         if (this.variantEnabled.peer) {
-          const peerVariant = variant.slice(5)
+          // As with group: peer-checked/draft names the sibling's class.
+          const { base: peerVariant, name } = splitVariantGroupName(variant.slice(5))
+          const peer = name ? `.peer\\/${name}` : '.peer'
           // peer-has-* needs special handling: peer-has-[:checked] -> .peer:has(:checked) ~
           if (peerVariant.startsWith('has-')) {
             const hasValue = peerVariant.slice(4)
             if (hasValue.charCodeAt(0) === 91 && hasValue.charCodeAt(hasValue.length - 1) === 93) {
-              prefix = `.peer:has(${hasValue.slice(1, -1)}) ~ `
+              prefix = `${peer}:has(${hasValue.slice(1, -1)}) ~ `
             }
             else {
-              prefix = `.peer:has(:${hasValue}) ~ `
+              prefix = `${peer}:has(:${hasValue}) ~ `
             }
           }
           else {
-            prefix = `.peer:${peerVariant} ~ `
+            prefix = `${peer}:${peerVariant} ~ `
           }
         }
         continue
