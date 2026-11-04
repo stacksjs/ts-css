@@ -179,6 +179,23 @@ export interface Theme {
    * composes with variants and is purged when unused.
    */
   animation?: Record<string, string>
+  /**
+   * Named modes, as mode -> the selector that turns it on:
+   * `{ dark: 'html.dark', marketing: 'html.marketing' }`.
+   *
+   * A colour whose value is an object keyed by `light` and these names is a
+   * MODE TOKEN rather than a shade scale: it emits `--color-<name>` in
+   * `:root` and again under each mode's selector, and its utilities read that
+   * variable, so one override re-themes every utility built from it.
+   *
+   * Declaring the modes is what disambiguates the two, since `dark` is also a
+   * perfectly good shade name -- a palette with a `dark` shade keeps meaning
+   * exactly that unless `dark` is named here.
+   *
+   * A mode need not be a colour scheme; a named section of a site works the
+   * same way, which `dark:` could never express.
+   */
+  modes?: Record<string, string>
   /** Extend theme values without replacing defaults */
   extend?: Partial<Omit<Theme, 'extend'>>
 }

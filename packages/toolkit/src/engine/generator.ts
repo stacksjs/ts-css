@@ -179,6 +179,74 @@ const ANIMATION_MAP: Record<string, Record<string, string>> = {
   'animate-bounce': { animation: 'bounce 1s infinite' },
 }
 
+/** A colour that varies by mode: the base value plus one per named mode. */
+interface ModeToken {
+  name: string
+  base: string
+  byMode: Record<string, string>
+}
+
+/**
+ * Pull the mode tokens out of a theme's colours.
+ *
+ * A colour is a mode token when its value is an object whose every key is
+ * `light` or a declared mode, and at least one is a mode. That test is what
+ * keeps a shade legitimately named `dark` a shade: it only reads as a mode
+ * once `theme.modes` says `dark` is one.
+ *
+ * Returns the tokens alongside a NEW colours record in which each is
+ * flattened to its base value, so every existing path -- shade lookup,
+ * opacity, arbitrary values -- resolves it as an ordinary colour and uses
+ * that value as the variable's fallback.
+ *
+ * The record is rebuilt rather than written through, because the theme a
+ * caller passes may be a shared object: flattening it in place left the
+ * second generator built from the same config literal with a plain string
+ * where the token had been, and its utilities silently stopped referencing
+ * the variable.
+ */
+function extractModeTokens(
+  colors: Record<string, string | Record<string, string>>,
+  modes: Record<string, string>,
+): { tokens: ModeToken[], colors: Record<string, string | Record<string, string>> } {
+  const modeNames = Object.keys(modes)
+  if (modeNames.length === 0)
+    return { tokens: [], colors }
+
+  const tokens: ModeToken[] = []
+  for (const [name, value] of Object.entries(colors)) {
+    if (typeof value !== 'object' || value === null)
+      continue
+    const keys = Object.keys(value)
+    if (keys.length === 0)
+      continue
+    if (!keys.every(key => key === 'light' || modeNames.includes(key)))
+      continue
+    if (!keys.some(key => modeNames.includes(key)))
+      continue
+
+    // `light` is the base when given; otherwise the first value is, so a
+    // token written with only a mode still paints something unscoped.
+    const base = typeof value.light === 'string' ? value.light : value[keys[0]]
+    if (typeof base !== 'string')
+      continue
+    const byMode: Record<string, string> = {}
+    for (const mode of modeNames) {
+      const modeValue = value[mode]
+      if (typeof modeValue === 'string')
+        byMode[mode] = modeValue
+    }
+    tokens.push({ name, base, byMode })
+  }
+  if (tokens.length === 0)
+    return { tokens, colors }
+
+  const flattened = { ...colors }
+  for (const token of tokens)
+    flattened[token.name] = token.base
+  return { tokens, colors: flattened }
+}
+
 /** The layer preflights land in: below everything an author writes. */
 const BASE_LAYER = 'tc-base'
 /** The layer utilities land in, but only once `layers` opts the sheet in. */
@@ -2113,6 +2181,8 @@ interface ProcessedConfig {
   themeAnimations: Record<string, Record<string, string>>
   /** Built-in @keyframes with the theme's merged over them, by name. */
   keyframes: Record<string, string>
+  /** Colours that vary by mode, emitted as variables in toCSS. */
+  modeTokens: ModeToken[]
 }
 
 function processConfig(config: CssConfig): ProcessedConfig {
@@ -2144,7 +2214,7 @@ function processConfig(config: CssConfig): ProcessedConfig {
   }
 
   // Save extend colors before merging
-  const extendColors = config.theme.extend?.colors
+  let extendColors = config.theme.extend?.colors
     ? config.theme.extend.colors as Record<string, string | Record<string, string>>
     : null
 
@@ -2153,6 +2223,28 @@ function processConfig(config: CssConfig): ProcessedConfig {
     const { extend, ...baseTheme } = config.theme
     if (extend) {
       config.theme = deepMerge(baseTheme, extend) as typeof config.theme
+    }
+  }
+
+  // Mode tokens are resolved before the colour tables below read the theme,
+  // since extracting one rewrites it to its base value. Their utilities must
+  // read the variable or the mode could never change what they paint, so the
+  // names join colorVariables rather than needing to be listed there by hand.
+  const extracted = extractModeTokens(
+    config.theme.colors as Record<string, string | Record<string, string>>,
+    config.theme.modes ?? {},
+  )
+  const modeTokens = extracted.tokens
+  if (modeTokens.length > 0) {
+    config.theme = { ...config.theme, colors: extracted.colors }
+    const names = modeTokens.map(token => token.name)
+    config.colorVariables = [...new Set([...(config.colorVariables ?? []), ...names])]
+    if (extendColors) {
+      extendColors = { ...extendColors }
+      for (const token of modeTokens) {
+        if (token.name in extendColors)
+          extendColors[token.name] = token.base
+      }
     }
   }
 
@@ -2209,6 +2301,7 @@ function processConfig(config: CssConfig): ProcessedConfig {
     hasShortcuts: Object.keys(config.shortcuts).length > 0,
     themeAnimations,
     keyframes,
+    modeTokens,
   }
 
   processedConfigCache.set(config, result)
@@ -3701,6 +3794,27 @@ export class CSSGenerator {
         // unlayered, so they still win over author styles as before.
         const wrapped = `@layer ${preflight.layer ?? BASE_LAYER} {\n${preflightCSS}\n}`
         parts.push(minify ? minifyCSSBlock(wrapped) : wrapped)
+      }
+    }
+
+    // Mode tokens: the base in :root, then one block per mode. Emitted
+    // whatever `cssVariables` says, because the utilities already reference
+    // these variables -- without the blocks they would fall back to the base
+    // in every mode, which is the bug rather than a smaller feature.
+    const modeTokens = this.processed.modeTokens
+    if (modeTokens.length > 0) {
+      const root = modeTokens.map(token => `  --color-${token.name}: ${token.base};`).join('\n')
+      const rootBlock = `:root {\n${root}\n}`
+      parts.push(minify ? minifyCSSBlock(rootBlock) : rootBlock)
+
+      for (const [mode, selector] of Object.entries(this.config.theme.modes ?? {})) {
+        const declarations = modeTokens
+          .filter(token => token.byMode[mode] !== undefined)
+          .map(token => `  --color-${token.name}: ${token.byMode[mode]};`)
+        if (declarations.length === 0)
+          continue
+        const block = `${selector} {\n${declarations.join('\n')}\n}`
+        parts.push(minify ? minifyCSSBlock(block) : block)
       }
     }
 
