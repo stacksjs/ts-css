@@ -104,7 +104,7 @@ export interface CssConfig {
   shortcuts: Record<string, string | string[]>
   rules: CustomRule[]
   variants: VariantConfig
-  safelist: string[]
+  safelist: SafelistEntry[]
   blocklist: string[]
   /**
    * Cascade layer order, emitted as `@layer a, b, c;` ahead of the sheet.
@@ -315,6 +315,13 @@ export interface UtilityRuleResult {
 }
 
 export type CustomRule = [RegExp, (_match: RegExpMatchArray) => Record<string, string> | undefined]
+
+/**
+ * A safelist entry: a class name, a name with `{a,b}` groups to expand, or a
+ * pattern filtering the names already in play (the expansions plus whatever
+ * the scanner found). `variants` is applied as a prefix to each match.
+ */
+export type SafelistEntry = string | RegExp | { pattern: RegExp, variants?: string[] }
 
 export interface Preflight {
   getCSS: () => string
