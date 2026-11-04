@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.21...v0.3.22)
+
+## ⚡ Performance Improvements
+
+- **engine**: scan markup boundaries once across code strings ([41e9486](https://github.com/stacksjs/ts-css/commit/41e9486)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.22 ([d9ccf68](https://github.com/stacksjs/ts-css/commit/d9ccf68)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris Breuer <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.20...v0.3.21)
 
 ## 🐛 Bug Fixes

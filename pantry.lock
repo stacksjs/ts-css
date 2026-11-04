@@ -21,7 +21,7 @@
     },
     "packages/vscode": {
       "name": "crosswind-vscode",
-      "version": "0.3.21"
+      "version": "0.3.22"
     }
   },
   "packages": {
