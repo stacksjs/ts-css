@@ -164,7 +164,7 @@ describe('Group and Peer Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('group-data-[w=1/2]:underline')
       const css = gen.toCSS(false)
-      expect(css).toContain('.group:data-[w=1/2]')
+      expect(css).toContain('[data-w=1/2]')
       expect(css).not.toContain('.group\\/')
     })
 
@@ -172,7 +172,7 @@ describe('Group and Peer Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('group-data-[w=1/2]/menu:underline')
       const css = gen.toCSS(false)
-      expect(css).toContain('.group\\/menu:data-[w=1/2]')
+      expect(css).toContain('.group\\/menu[data-w=1/2]')
     })
 
     it('should leave the unnamed forms alone', () => {
@@ -183,6 +183,78 @@ describe('Group and Peer Variants', () => {
       expect(css).toContain('.peer:checked ~ .peer-checked\\:block')
       expect(css).not.toContain('.group\\/')
       expect(css).not.toContain('.peer\\/')
+    })
+  })
+
+  /**
+   * The condition is resolved, not pasted after a colon. `.group:first` and
+   * `.group:data-[state=open]` are not selectors, so the browser dropped the
+   * rule and the utility silently never applied. Checked against a real
+   * tailwindcss 4.3.3 build, allowing for the descendant-prefix shape this
+   * engine uses in place of Tailwind's `:is(:where(...))`.
+   */
+  describe('Group and peer conditions resolve to real selectors', () => {
+    const CONDITIONS: Array<[string, string]> = [
+      ['group-first:underline', '.group:first-child '],
+      ['group-last:underline', '.group:last-child '],
+      ['group-odd:underline', '.group:nth-child(odd) '],
+      ['group-even:underline', '.group:nth-child(even) '],
+      ['group-data-[state=open]:underline', '.group[data-state=open] '],
+      ['group-data-open:underline', '.group[data-open] '],
+      ['group-aria-[sort=ascending]:underline', '.group[aria-sort=ascending] '],
+      ['group-aria-checked:underline', '.group[aria-checked="true"] '],
+      ['group-[.sidebar]:underline', '.group:is(.sidebar) '],
+      ['peer-first:underline', '.peer:first-child ~ '],
+      ['peer-data-[state=on]:block', '.peer[data-state=on] ~ '],
+      ['peer-[.dark]:underline', '.peer:is(.dark) ~ '],
+    ]
+
+    for (const [candidate, expected] of CONDITIONS) {
+      it(`should resolve ${candidate}`, () => {
+        const gen = new CSSGenerator(defaultConfig)
+        gen.generate(candidate)
+        const css = gen.toCSS(false)
+        expect(css).toContain(expected)
+        // The old shape pasted the token on as a pseudo-class.
+        expect(css).not.toContain(':data-')
+        expect(css).not.toContain(':aria-')
+        expect(css).not.toContain(':[')
+      })
+    }
+
+    /**
+     * A `&` is the group element, which the prefix already names, so it drops
+     * out. `in-*` turns it into `*` because it has no class to anchor to, and
+     * `.group*.is-open` would not parse.
+     */
+    it('should resolve an & in an arbitrary selector to the group itself', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('group-[&.is-open]:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain('.group.is-open ')
+      expect(css).not.toContain('.group*')
+    })
+
+    /**
+     * Resolution is fail-closed, and isVariantHandled asks the same question,
+     * so the rule is dropped whole. Were only the prefix lost, the utility
+     * would become an always-on rule -- worse than the invalid selector.
+     */
+    it('should emit nothing for a condition it cannot resolve', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generateBatch(['group-bogus:underline', 'peer-bogus:underline'])
+      const css = gen.toCSS(false)
+      expect(css).not.toContain('bogus')
+      expect(css).not.toContain('text-decoration-line')
+    })
+
+    /** A pseudo-element cannot be the group, however valid a variant it is. */
+    it('should not accept a pseudo-element as a condition', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('group-before:underline')
+      const css = gen.toCSS(false)
+      expect(css).not.toContain('::before')
+      expect(css).not.toContain('text-decoration-line')
     })
   })
 })

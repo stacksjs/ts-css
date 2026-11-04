@@ -1646,6 +1646,73 @@ function ancestorConditionSelector(token: string): string | undefined {
 }
 
 /**
+ * Resolve the condition a `group-*` or `peer-*` variant places on the group
+ * element, ready to append to `.group` or `.peer`.
+ *
+ * The branch used to paste the token after a colon, which is a selector only
+ * when the token happens to be one. `group-hover` worked; `group-first` gave
+ * `.group:first` rather than `:first-child`, `group-data-[state=open]` gave
+ * `.group:data-[state=open]`, and `group-bogus` gave `.group:bogus`. Browsers
+ * drop all of those, so the utility silently never applied.
+ *
+ * The forms are the ones `ancestorConditionSelector` resolves for `in-*`, and
+ * differ from it twice over: the condition is appended to the group's class
+ * instead of being wrapped in `:where()`, which is what keeps the existing
+ * specificity; and a `&` in an arbitrary selector is the group element that
+ * the prefix already names, so it drops out rather than becoming `*`, because
+ * `.group*.is-open` does not parse.
+ *
+ * Returns undefined for a condition that cannot be resolved, which drops the
+ * rule. isVariantHandled asks this same question, so an unresolvable variant
+ * can never lose its prefix and leave the utility as an always-on rule.
+ */
+function groupConditionSelector(token: string): string | undefined {
+  if (!token)
+    return undefined
+
+  // group-has-[>img] -> :has(>img), group-has-checked -> :has(:checked).
+  if (token.startsWith('has-')) {
+    const value = token.slice(4)
+    if (!value)
+      return undefined
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `:has(${value.slice(1, -1)})`
+      : `:has(:${value})`
+  }
+
+  // Arbitrary selector: group-[.sidebar], group-[&.is-open].
+  if (token.charCodeAt(0) === 91 && token.charCodeAt(token.length - 1) === 93) {
+    const inner = token.slice(1, -1).replace(/_/g, ' ').trim()
+    if (!inner)
+      return undefined
+    return inner.includes('&') ? inner.replace(/&/g, '') : `:is(${inner})`
+  }
+
+  if (token.startsWith('data-')) {
+    const value = token.slice(5)
+    if (!value)
+      return undefined
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `[data-${value.slice(1, -1)}]`
+      : `[data-${value}]`
+  }
+
+  if (token.startsWith('aria-')) {
+    const value = token.slice(5)
+    if (!value)
+      return undefined
+    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
+      ? `[aria-${value.slice(1, -1)}]`
+      : `[aria-${value}="true"]`
+  }
+
+  // A pseudo-ELEMENT can never be the group, so ::before and friends are not
+  // conditions even though they are variants.
+  const known = VARIANT_SELECTORS[token]
+  return known !== undefined && !known.startsWith('::') ? known : undefined
+}
+
+/**
  * Split the `/name` a named group or peer variant ends with.
  *
  * `group-hover/section` asks about an ancestor carrying `group/section`, so
@@ -2919,8 +2986,12 @@ export class CSSGenerator {
         || variant === '*' || variant === '**'
         || nthVariantSelector(variant) !== undefined
         || (variant.startsWith('in-') && ancestorConditionSelector(variant.slice(3)) !== undefined)
-        || variant.startsWith('group-') || variant.startsWith('group/')
-        || variant.startsWith('peer-') || variant.startsWith('peer/')
+        // Gated on the condition resolving, as `in-` is: an unresolvable
+        // group variant must drop the rule, not lose its prefix and leave the
+        // utility applying to everything.
+        || (variant.startsWith('group-') && groupConditionSelector(splitVariantGroupName(variant.slice(6)).base) !== undefined)
+        || (variant.startsWith('peer-') && groupConditionSelector(splitVariantGroupName(variant.slice(5)).base) !== undefined)
+        || variant.startsWith('group/') || variant.startsWith('peer/')
         || variant.startsWith('has-') || variant.startsWith('aria-') || variant.startsWith('data-')
         || variant.startsWith('supports-')
         || (variant.startsWith('[') && variant.endsWith(']'))
@@ -3208,19 +3279,9 @@ export class CSSGenerator {
           // so the name is split off before the variant is read.
           const { base: groupVariant, name } = splitVariantGroupName(variant.slice(6))
           const group = name ? `.group\\/${name}` : '.group'
-          // group-has-* needs special handling: group-has-[:checked] -> .group:has(:checked)
-          if (groupVariant.startsWith('has-')) {
-            const hasValue = groupVariant.slice(4)
-            if (hasValue.charCodeAt(0) === 91 && hasValue.charCodeAt(hasValue.length - 1) === 93) {
-              prefix = `${group}:has(${hasValue.slice(1, -1)}) `
-            }
-            else {
-              prefix = `${group}:has(:${hasValue}) `
-            }
-          }
-          else {
-            prefix = `${group}:${groupVariant} `
-          }
+          const condition = groupConditionSelector(groupVariant)
+          if (condition !== undefined)
+            prefix = `${group}${condition} `
         }
         continue
       }
@@ -3239,19 +3300,9 @@ export class CSSGenerator {
           // As with group: peer-checked/draft names the sibling's class.
           const { base: peerVariant, name } = splitVariantGroupName(variant.slice(5))
           const peer = name ? `.peer\\/${name}` : '.peer'
-          // peer-has-* needs special handling: peer-has-[:checked] -> .peer:has(:checked) ~
-          if (peerVariant.startsWith('has-')) {
-            const hasValue = peerVariant.slice(4)
-            if (hasValue.charCodeAt(0) === 91 && hasValue.charCodeAt(hasValue.length - 1) === 93) {
-              prefix = `${peer}:has(${hasValue.slice(1, -1)}) ~ `
-            }
-            else {
-              prefix = `${peer}:has(:${hasValue}) ~ `
-            }
-          }
-          else {
-            prefix = `${peer}:${peerVariant} ~ `
-          }
+          const condition = groupConditionSelector(peerVariant)
+          if (condition !== undefined)
+            prefix = `${peer}${condition} ~ `
         }
         continue
       }
