@@ -1,3 +1,19 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.22...v0.3.23)
+
+## 🐛 Bug Fixes
+
+- **engine**: quote an arbitrary data-* or aria-* value ([f069b79](https://github.com/stacksjs/ts-css/commit/f069b79)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#43](https://github.com/stacksjs/ts-css/issues/43))
+- **engine**: resolve a group or peer condition instead of pasting the token ([dba1f49](https://github.com/stacksjs/ts-css/commit/dba1f49)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#42](https://github.com/stacksjs/ts-css/issues/42))
+- **engine**: put a named group's name on the group class ([948a628](https://github.com/stacksjs/ts-css/commit/948a628)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#41](https://github.com/stacksjs/ts-css/issues/41))
+
+## 🔧 Chores
+
+- release v0.3.23 ([1e7553e](https://github.com/stacksjs/ts-css/commit/1e7553e)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.21...v0.3.22)
 
 ## ⚡ Performance Improvements
