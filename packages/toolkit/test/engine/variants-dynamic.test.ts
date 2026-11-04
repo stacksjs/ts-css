@@ -69,14 +69,14 @@ describe('Dynamic Attribute Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('aria-[sort=ascending]:text-blue-500')
       const css = gen.toCSS(false)
-      expect(css).toContain('[aria-sort=ascending]')
+      expect(css).toContain('[aria-sort="ascending"]')
     })
 
     it('should generate arbitrary aria selector: aria-[role=tab]', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('aria-[role=tab]:font-bold')
       const css = gen.toCSS(false)
-      expect(css).toContain('[aria-role=tab]')
+      expect(css).toContain('[aria-role="tab"]')
     })
   })
 
@@ -100,21 +100,87 @@ describe('Dynamic Attribute Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('data-[state=active]:bg-white')
       const css = gen.toCSS(false)
-      expect(css).toContain('[data-state=active]')
+      expect(css).toContain('[data-state="active"]')
     })
 
     it('should generate arbitrary data selector: data-[size=lg]', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('data-[size=lg]:text-lg')
       const css = gen.toCSS(false)
-      expect(css).toContain('[data-size=lg]')
+      expect(css).toContain('[data-size="lg"]')
     })
 
     it('should generate arbitrary data selector: data-[theme=dark]', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('data-[theme=dark]:bg-black')
       const css = gen.toCSS(false)
-      expect(css).toContain('[data-theme=dark]')
+      expect(css).toContain('[data-theme="dark"]')
+    })
+  })
+
+  /**
+   * An unquoted attribute value has to be a CSS identifier, so a value that
+   * is not one made the whole rule unparseable and it was dropped: `1/2` is
+   * the clearest case, since `/` cannot appear unquoted at all. Checked
+   * against a real tailwindcss 4.3.3 build.
+   */
+  describe('arbitrary attribute values are quoted', () => {
+    const QUOTED: Array<[string, string]> = [
+      ['data-[w=1/2]:underline', '[data-w="1/2"]'],
+      ['data-[state=open]:underline', '[data-state="open"]'],
+      ['data-[state^=op]:underline', '[data-state^="op"]'],
+      ['data-[state~=op]:underline', '[data-state~="op"]'],
+      ['aria-[sort=ascending]:underline', '[aria-sort="ascending"]'],
+      // Every path that builds one of these, not just the plain variant.
+      ['group-data-[w=1/2]:underline', '[data-w="1/2"]'],
+      ['peer-aria-[label=a_b]:underline', '[aria-label="a b"]'],
+      ['in-data-[w=1/2]:underline', '[data-w="1/2"]'],
+    ]
+
+    for (const [candidate, expected] of QUOTED) {
+      it(`should quote ${candidate}`, () => {
+        const gen = new CSSGenerator(defaultConfig)
+        gen.generate(candidate)
+        expect(gen.toCSS(false)).toContain(expected)
+      })
+    }
+
+    it('should read _ in an arbitrary value as a space', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('data-[label=hello_world]:underline')
+      expect(gen.toCSS(false)).toContain('[data-label="hello world"]')
+    })
+
+    /** Which is what puts the case-sensitivity flag within reach. */
+    it('should keep a trailing case flag outside the quotes', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('data-[state=open_i]:underline')
+      expect(gen.toCSS(false)).toContain('[data-state="open" i]')
+    })
+
+    it('should leave an already quoted value as it is', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('data-[state="open"]:underline')
+      const css = gen.toCSS(false)
+      expect(css).toContain('[data-state="open"]')
+      // Re-quoting would give [data-state="\"open\""]. The escaped quotes in
+      // the class name itself are expected, so this looks only at the value.
+      expect(css).not.toContain('[data-state="\\"')
+    })
+
+    it('should leave a presence test bare', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generateBatch(['data-[open]:underline', 'data-loading:underline'])
+      const css = gen.toCSS(false)
+      expect(css).toContain('[data-open]')
+      expect(css).toContain('[data-loading]')
+      expect(css).not.toContain('[data-open=')
+    })
+
+    it('should keep aria short form as the boolean true', () => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate('aria-checked:underline')
+      expect(gen.toCSS(false)).toContain('[aria-checked="true"]')
     })
   })
 
@@ -207,9 +273,9 @@ describe('in-* ancestor variants', () => {
       ['in-first:flex', ':where(:first-child)'],
       ['in-open:flex', ':where(:is([open], :popover-open, :open))'],
       ['in-aria-expanded:flex', ':where([aria-expanded="true"])'],
-      ['in-aria-[sort=asc]:flex', ':where([aria-sort=asc])'],
+      ['in-aria-[sort=asc]:flex', ':where([aria-sort="asc"])'],
       ['in-data-open:flex', ':where([data-open])'],
-      ['in-data-[state=open]:flex', ':where([data-state=open])'],
+      ['in-data-[state=open]:flex', ':where([data-state="open"])'],
       ['in-[.card]:flex', ':where(:is(.card))'],
     ]
 

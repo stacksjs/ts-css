@@ -164,7 +164,7 @@ describe('Group and Peer Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('group-data-[w=1/2]:underline')
       const css = gen.toCSS(false)
-      expect(css).toContain('[data-w=1/2]')
+      expect(css).toContain('[data-w="1/2"]')
       expect(css).not.toContain('.group\\/')
     })
 
@@ -172,7 +172,7 @@ describe('Group and Peer Variants', () => {
       const gen = new CSSGenerator(defaultConfig)
       gen.generate('group-data-[w=1/2]/menu:underline')
       const css = gen.toCSS(false)
-      expect(css).toContain('.group\\/menu[data-w=1/2]')
+      expect(css).toContain('.group\\/menu[data-w="1/2"]')
     })
 
     it('should leave the unnamed forms alone', () => {
@@ -199,13 +199,13 @@ describe('Group and Peer Variants', () => {
       ['group-last:underline', '.group:last-child '],
       ['group-odd:underline', '.group:nth-child(odd) '],
       ['group-even:underline', '.group:nth-child(even) '],
-      ['group-data-[state=open]:underline', '.group[data-state=open] '],
+      ['group-data-[state=open]:underline', '.group[data-state="open"] '],
       ['group-data-open:underline', '.group[data-open] '],
-      ['group-aria-[sort=ascending]:underline', '.group[aria-sort=ascending] '],
+      ['group-aria-[sort=ascending]:underline', '.group[aria-sort="ascending"] '],
       ['group-aria-checked:underline', '.group[aria-checked="true"] '],
       ['group-[.sidebar]:underline', '.group:is(.sidebar) '],
       ['peer-first:underline', '.peer:first-child ~ '],
-      ['peer-data-[state=on]:block', '.peer[data-state=on] ~ '],
+      ['peer-data-[state=on]:block', '.peer[data-state="on"] ~ '],
       ['peer-[.dark]:underline', '.peer:is(.dark) ~ '],
     ]
 

@@ -1542,15 +1542,8 @@ function negatableVariantSelector(token: string): string | undefined {
       : `:has(:${value})`
   }
 
-  if (token.startsWith('aria-') || token.startsWith('data-')) {
-    const attr = token.slice(0, 4)
-    const value = token.slice(5)
-    if (!value)
-      return undefined
-    if (value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93)
-      return `[${attr}-${value.slice(1, -1)}]`
-    return attr === 'aria' ? `[aria-${value}="true"]` : `[data-${value}]`
-  }
+  if (token.startsWith('aria-') || token.startsWith('data-'))
+    return attributeCondition(token.slice(0, 4) as 'aria' | 'data', token.slice(5))
 
   // `not-in-focus` is "not a descendant of a focused element", so the
   // ancestor condition has to carry its descendant combinator inside the
@@ -1625,24 +1618,78 @@ function ancestorConditionSelector(token: string): string | undefined {
     return inner.includes('&') ? inner.replace(/&/g, '*') : `:is(${inner})`
   }
 
-  if (token.startsWith('data-')) {
-    const value = token.slice(5)
-    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
-      ? `[data-${value.slice(1, -1)}]`
-      : `[data-${value}]`
-  }
+  if (token.startsWith('data-'))
+    return attributeCondition('data', token.slice(5))
 
-  if (token.startsWith('aria-')) {
-    const value = token.slice(5)
-    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
-      ? `[aria-${value.slice(1, -1)}]`
-      : `[aria-${value}="true"]`
-  }
+  if (token.startsWith('aria-'))
+    return attributeCondition('aria', token.slice(5))
 
   // A pseudo-ELEMENT can never be an ancestor, so ::before and friends are
   // not valid conditions even though they are valid variants.
   const known = VARIANT_SELECTORS[token]
   return known !== undefined && !known.startsWith('::') ? known : undefined
+}
+
+/**
+ * An attribute test, split into name, operator and value: `state^=op` and
+ * `w=1/2`. A bare presence test (`open`) carries no operator and so does not
+ * match.
+ */
+const ATTRIBUTE_TEST = /^([^~|^$*=\s]+)([~|^$*]?=)([\s\S]*)$/
+/** A trailing case-sensitivity flag, which belongs outside the quotes. */
+const ATTRIBUTE_FLAG = /\s+([is])$/i
+
+/**
+ * Quote the value in an attribute test.
+ *
+ * An unquoted attribute value has to be a CSS identifier, so `w=1/2` is not a
+ * selector a browser parses -- it was emitted as `[data-w=1/2]` and the rule
+ * was dropped. Quoting always is simpler than deciding whether a given value
+ * would have been a valid identifier, and matches what Tailwind emits.
+ *
+ * A value already quoted is left alone, and a trailing case-sensitivity flag
+ * stays outside the quotes: `state=open i` is `state="open" i`.
+ */
+function quoteAttributeTest(test: string): string {
+  const match = ATTRIBUTE_TEST.exec(test)
+  if (match === null)
+    return test
+
+  const name = match[1]
+  const operator = match[2]
+  let value = match[3]
+  let flag = ''
+
+  const flagged = ATTRIBUTE_FLAG.exec(value)
+  if (flagged !== null) {
+    flag = ` ${flagged[1]}`
+    value = value.slice(0, flagged.index)
+  }
+
+  const quoted = value.length > 1 && (value.charCodeAt(0) === 34 || value.charCodeAt(0) === 39) && value.charCodeAt(value.length - 1) === value.charCodeAt(0)
+    ? value
+    : `"${value.replace(/["\\]/g, '\\$&')}"`
+
+  return `${name}${operator}${quoted}${flag}`
+}
+
+/**
+ * Build the attribute selector a `data-*` or `aria-*` token means.
+ *
+ * Without brackets it is the short form: `data-open` tests the attribute is
+ * present, and `aria-checked` tests it is the string `"true"`.
+ *
+ * Bracketed, it is an arbitrary value, so `_` stands for a space the way it
+ * does in every other arbitrary value, and the value is then quoted.
+ */
+function attributeCondition(attr: 'aria' | 'data', value: string): string | undefined {
+  if (!value)
+    return undefined
+  if (value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93) {
+    const inner = value.slice(1, -1).replace(/_/g, ' ').trim()
+    return inner ? `[${attr}-${quoteAttributeTest(inner)}]` : undefined
+  }
+  return attr === 'aria' ? `[aria-${value}="true"]` : `[data-${value}]`
 }
 
 /**
@@ -1688,23 +1735,11 @@ function groupConditionSelector(token: string): string | undefined {
     return inner.includes('&') ? inner.replace(/&/g, '') : `:is(${inner})`
   }
 
-  if (token.startsWith('data-')) {
-    const value = token.slice(5)
-    if (!value)
-      return undefined
-    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
-      ? `[data-${value.slice(1, -1)}]`
-      : `[data-${value}]`
-  }
+  if (token.startsWith('data-'))
+    return attributeCondition('data', token.slice(5))
 
-  if (token.startsWith('aria-')) {
-    const value = token.slice(5)
-    if (!value)
-      return undefined
-    return value.charCodeAt(0) === 91 && value.charCodeAt(value.length - 1) === 93
-      ? `[aria-${value.slice(1, -1)}]`
-      : `[aria-${value}="true"]`
-  }
+  if (token.startsWith('aria-'))
+    return attributeCondition('aria', token.slice(5))
 
   // A pseudo-ELEMENT can never be the group, so ::before and friends are not
   // conditions even though they are variants.
@@ -3335,16 +3370,10 @@ export class CSSGenerator {
       // Handle aria-* variants: aria-disabled, aria-[sort=ascending]
       if (variant.charCodeAt(0) === 97 && variant.startsWith('aria-')) { // 'a' = 97
         if (this.variantEnabled.aria) {
-          const ariaValue = variant.slice(5)
-          // Arbitrary value: aria-[sort=ascending]
-          if (ariaValue.charCodeAt(0) === 91 && ariaValue.charCodeAt(ariaValue.length - 1) === 93) {
-            const inner = ariaValue.slice(1, -1)
-            selector += `[aria-${inner}]`
-          }
-          else {
-            // Boolean attribute: aria-disabled -> [aria-disabled="true"]
-            selector += `[aria-${ariaValue}="true"]`
-          }
+          // Arbitrary value: aria-[sort=ascending]; boolean: aria-disabled.
+          const condition = attributeCondition('aria', variant.slice(5))
+          if (condition !== undefined)
+            selector += condition
         }
         continue
       }
@@ -3352,16 +3381,10 @@ export class CSSGenerator {
       // Handle data-* variants: data-[state=active], data-loading
       if (variant.charCodeAt(0) === 100 && variant.startsWith('data-')) { // 'd' = 100
         if (this.variantEnabled.data) {
-          const dataValue = variant.slice(5)
-          // Arbitrary value: data-[state=active]
-          if (dataValue.charCodeAt(0) === 91 && dataValue.charCodeAt(dataValue.length - 1) === 93) {
-            const inner = dataValue.slice(1, -1)
-            selector += `[data-${inner}]`
-          }
-          else {
-            // Boolean attribute: data-loading -> [data-loading]
-            selector += `[data-${dataValue}]`
-          }
+          // Arbitrary value: data-[state=active]; presence: data-loading.
+          const condition = attributeCondition('data', variant.slice(5))
+          if (condition !== undefined)
+            selector += condition
         }
         continue
       }
