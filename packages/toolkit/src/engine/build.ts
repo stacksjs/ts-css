@@ -1,5 +1,6 @@
 import type { CssConfig } from './types'
 import { CSSGenerator } from './generator'
+import { resolveSafelist } from './safelist'
 import { Scanner } from './scanner'
 import { collectStyles } from './style/collect'
 import { resetStyles } from './style/registry'
@@ -40,17 +41,9 @@ export async function build(config: CssConfig): Promise<BuildResult> {
   })
   const { classes, transformedFiles, unmatchedPatterns } = await scanner.scan()
 
-  // Add safelist classes. Only strings are supported — a Tailwind-style
-  // { pattern: /.../ } entry previously reached parseClass and crashed the
-  // whole build with 'className.startsWith is not a function'.
-  for (const cls of config.safelist) {
-    if (typeof cls === 'string') {
-      classes.add(cls)
-    }
-    else {
-      console.warn(`⚠️  Ignoring non-string safelist entry (patterns are not supported): ${JSON.stringify(cls)}`)
-    }
-  }
+  // Patterns filter what the scanner found, so this runs after the scan.
+  for (const cls of resolveSafelist(config.safelist, classes))
+    classes.add(cls)
 
   // Generate CSS
   const generator = new CSSGenerator(config)

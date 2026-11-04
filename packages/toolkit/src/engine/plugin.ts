@@ -3,6 +3,7 @@ import type { CssConfig, CssOptions } from './types'
 import { defaultConfig } from './config'
 import { CSSGenerator } from './generator'
 import { extractClasses } from './parser'
+import { resolveSafelist } from './safelist'
 
 export interface CssPluginOptions {
   /**
@@ -106,12 +107,9 @@ export function plugin(options: CssPluginOptions = {}): BunPlugin {
           codeStrings: config.codeStrings,
         })
 
-        // Add safelist classes (strings only; pattern objects are ignored)
-        for (const cls of config.safelist) {
-          if (typeof cls === 'string') {
-            classes.add(cls)
-          }
-        }
+        // Patterns filter what the scanner found, so this runs after the scan.
+        for (const cls of resolveSafelist(config.safelist, classes))
+          classes.add(cls)
 
         // Generate CSS
         const generator = new CSSGenerator(config)
