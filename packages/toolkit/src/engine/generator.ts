@@ -3691,7 +3691,7 @@ export class CSSGenerator {
    * Escape special characters in class names for CSS selectors
    * Optimized with charCode checks for common fast path
   */
-  private escapeSelector(className: string): string {
+  escapeSelector(className: string): string {
     // Fast path: identifier-safe ASCII ([A-Za-z0-9_-]) needs no escaping.
     // Everything else gets a backslash — an allowlist of "special" chars
     // kept missing selector-significant ones (& ? { } ; < $ | \), so
@@ -4025,6 +4025,30 @@ export class CSSGenerator {
     if (vars.length === 0) return null
     return `:root {\n${vars.join('\n')}\n}`
   }
+
+  /**
+   * The rules a single class generates.
+   *
+   * `toCSS` answers with CSS text, which is what a stylesheet wants; `@apply`
+   * instead needs the declarations so it can re-home them under the selector
+   * the author wrote. Returning the rules keeps that expansion on exactly the
+   * utility the engine would have emitted -- variants, media queries,
+   * arbitrary values and all -- rather than a second implementation of them.
+   *
+   * Generated on a scratch generator so the caller's own output is untouched.
+   */
+  rulesFor(className: string): CSSRule[] {
+    if (!this.probe)
+      this.probe = new CSSGenerator(this.config)
+    this.probe.reset()
+    this.probe.generate(className)
+    const found: CSSRule[] = []
+    for (const rules of this.probe.rules.values())
+      found.push(...rules)
+    return found
+  }
+
+  private probe: CSSGenerator | null = null
 
   /**
    * Reset the generator state (clears all generated CSS and caches)
