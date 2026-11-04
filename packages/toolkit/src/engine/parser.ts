@@ -2170,6 +2170,13 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
   const tokens = new Set<string>()
   const length = content.length
   let i = 0
+  // Quotes arrive in source order. Remember the nearest markup boundaries
+  // instead of searching the entire preceding bundle again for each literal.
+  // Include boundaries inside skipped strings/comments, just as lastIndexOf did.
+  const markupBoundaries = /[<>]/g
+  let nextMarkupBoundary = markupBoundaries.exec(content)
+  let tagStart = -1
+  let tagEnd = -1
   // The last significant character outside strings and comments, for telling
   // a regex literal's `/` from division.
   let lastSig = ''
@@ -2210,7 +2217,14 @@ function extractCodeStringCandidates(content: string, bracketConfig?: BracketSyn
     }
     lastSig = ')'
 
-    const markupAttribute = isMarkupAttributeString(content, i)
+    while (nextMarkupBoundary && nextMarkupBoundary.index < i) {
+      if (nextMarkupBoundary[0] === '<')
+        tagStart = nextMarkupBoundary.index
+      else
+        tagEnd = nextMarkupBoundary.index
+      nextMarkupBoundary = markupBoundaries.exec(content)
+    }
+    const markupAttribute = isMarkupAttributeString(content, i, tagStart, tagEnd)
     const multiline = quote === '`'
     let j = i + 1
     let literal = ''
@@ -2351,9 +2365,7 @@ function regexLiteralEnd(content: string, start: number): number {
  */
 const ICON_TOKEN = /(?<![\w-])i-[a-z0-9]+(?:-[a-z0-9]+)+(?![\w-])/gi
 
-function isMarkupAttributeString(content: string, quoteIndex: number): boolean {
-  const tagStart = content.lastIndexOf('<', quoteIndex)
-  const tagEnd = content.lastIndexOf('>', quoteIndex)
+function isMarkupAttributeString(content: string, quoteIndex: number, tagStart: number, tagEnd: number): boolean {
   if (tagStart <= tagEnd)
     return false
 
