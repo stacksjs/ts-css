@@ -179,6 +179,11 @@ const ANIMATION_MAP: Record<string, Record<string, string>> = {
   'animate-bounce': { animation: 'bounce 1s infinite' },
 }
 
+/** The layer preflights land in: below everything an author writes. */
+const BASE_LAYER = 'tc-base'
+/** The layer utilities land in, but only once `layers` opts the sheet in. */
+const UTILITIES_LAYER = 'tc-utilities'
+
 /**
  * Render a theme `keyframes` entry as a CSS block.
  *
@@ -3665,6 +3670,13 @@ export class CSSGenerator {
       parts.push(minify ? fontCSS.replace(/\s*\n\s*/g, '') : fontCSS)
     }
 
+    // The order declaration has to precede the layers it names, and an
+    // @import is the only thing allowed above it.
+    const layers = this.config.layers
+    const layered = Array.isArray(layers) && layers.length > 0
+    if (layered)
+      parts.push(`@layer ${layers.join(', ')};`)
+
     // Add preflight CSS first (if requested)
     if (includePreflight) {
       for (const preflight of this.config.preflights) {
@@ -3687,8 +3699,8 @@ export class CSSGenerator {
         // silently overrode author styles (form inputs lost their padding —
         // placeholders sitting flush against the border). Utilities stay
         // unlayered, so they still win over author styles as before.
-        const layered = `@layer tc-base {\n${preflightCSS}\n}`
-        parts.push(minify ? minifyCSSBlock(layered) : layered)
+        const wrapped = `@layer ${preflight.layer ?? BASE_LAYER} {\n${preflightCSS}\n}`
+        parts.push(minify ? minifyCSSBlock(wrapped) : wrapped)
       }
     }
 
@@ -3699,6 +3711,12 @@ export class CSSGenerator {
         parts.push(minify ? vars.replace(/\s+/g, ' ').trim() : vars)
       }
     }
+
+    // Everything from here to the end of the media buckets is the utility
+    // output, which `layers` wraps as one layer -- keyframes included, since
+    // an @keyframes outside the layer its animation is in is a different rule
+    // in the cascade.
+    const utilitiesStart = parts.length
 
     // Base rules (no media query)
     const baseRules = this.rules.get('base') || []
@@ -3736,6 +3754,11 @@ export class CSSGenerator {
         css = minify ? `${wrappers[i]}{${css}}` : `${wrappers[i]} {\n${css}\n}`
       }
       parts.push(css)
+    }
+
+    if (layered && parts.length > utilitiesStart) {
+      const utilities = parts.splice(utilitiesStart).join(minify ? '' : '\n\n')
+      parts.push(minify ? `@layer ${UTILITIES_LAYER}{${utilities}}` : `@layer ${UTILITIES_LAYER} {\n${utilities}\n}`)
     }
 
     const css = minify ? parts.join('') : parts.join('\n\n')

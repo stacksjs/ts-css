@@ -106,6 +106,20 @@ export interface CssConfig {
   variants: VariantConfig
   safelist: string[]
   blocklist: string[]
+  /**
+   * Cascade layer order, emitted as `@layer a, b, c;` ahead of the sheet.
+   *
+   * Setting this also moves the utilities into the `tc-utilities` layer, so
+   * naming a layer after it lets ordinary author CSS beat a utility without
+   * having to out-specify it. Left unset, utilities stay unlayered and beat
+   * every layered rule whatever the source order -- so this is opt-in, and
+   * omitting it keeps the cascade a sheet already has.
+   *
+   * List `tc-base` and `tc-utilities` where you want them; a layer the
+   * engine emits into but this does not name is still ordered last by the
+   * browser, after everything named here.
+   */
+  layers?: string[]
   preflights: Preflight[]
   presets: Preset[]
   compileClass?: CompileClassConfig
@@ -304,6 +318,11 @@ export type CustomRule = [RegExp, (_match: RegExpMatchArray) => Record<string, s
 
 export interface Preflight {
   getCSS: () => string
+  /**
+   * Cascade layer to emit this preflight into. Defaults to the engine's base
+   * layer, which is below everything else an author writes.
+   */
+  layer?: string
 }
 
 export interface Preset {
