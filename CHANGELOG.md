@@ -1,3 +1,26 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.23...v0.3.24)
+
+## ✨ Features
+
+- **build**: accept an input stylesheet, and warn on an @apply that is dropped ([1163947](https://github.com/stacksjs/ts-css/commit/1163947)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#24](https://github.com/stacksjs/ts-css/issues/24))
+- **stylesheet**: process an authored sheet's @apply and theme() ([f993048](https://github.com/stacksjs/ts-css/commit/f993048)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **theme**: give colour tokens a mode axis ([03a9d8d](https://github.com/stacksjs/ts-css/commit/03a9d8d)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#23](https://github.com/stacksjs/ts-css/issues/23), [#18181](https://github.com/stacksjs/ts-css/issues/18181))
+- **safelist**: resolve families and patterns, not just literals ([d257623](https://github.com/stacksjs/ts-css/commit/d257623)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **config**: author-controlled cascade layers ([4e892ee](https://github.com/stacksjs/ts-css/commit/4e892ee)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#21](https://github.com/stacksjs/ts-css/issues/21))
+- **theme**: register custom keyframes and animations ([245ef48](https://github.com/stacksjs/ts-css/commit/245ef48)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#22](https://github.com/stacksjs/ts-css/issues/22))
+
+## 🐛 Bug Fixes
+
+- **safelist**: resolve the safelist in both build pipelines ([4c6146f](https://github.com/stacksjs/ts-css/commit/4c6146f)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#26](https://github.com/stacksjs/ts-css/issues/26))
+
+## 🔧 Chores
+
+- release v0.3.24 ([27e09d2](https://github.com/stacksjs/ts-css/commit/27e09d2)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.22...v0.3.23)
 
 ## 🐛 Bug Fixes
