@@ -190,3 +190,75 @@ describe('Reverse Utilities', () => {
     expect(css).toContain('--tc-divide-y-reverse: 1')
   })
 })
+
+/**
+ * A custom animation used to have no registration point: theme.keyframes and
+ * theme.animation were deep-merged and then never read, so `animate-<name>`
+ * generated nothing and said nothing. The only way to ship one was a raw
+ * preflight holding both the @keyframes and a hand-written class, which the
+ * extractor could not see, purge, or compose with variants.
+ */
+describe('Theme keyframes and animations', () => {
+  const themed = (extend: Record<string, unknown>) => new CSSGenerator({
+    ...defaultConfig,
+    theme: { ...defaultConfig.theme, extend: { ...defaultConfig.theme?.extend, ...extend } },
+  } as typeof defaultConfig)
+
+  const REVEAL = {
+    keyframes: { 'reveal-up': { from: { opacity: '0' }, to: { opacity: '1' } } },
+    animation: { reveal: 'reveal-up 1s linear both' },
+  }
+
+  it('should generate a utility for a theme animation', () => {
+    const gen = themed(REVEAL)
+    gen.generate('animate-reveal')
+    const css = gen.toCSS()
+    expect(css).toContain('.animate-reveal')
+    expect(css).toContain('animation: reveal-up 1s linear both')
+  })
+
+  it('should emit the @keyframes it names', () => {
+    const gen = themed(REVEAL)
+    gen.generate('animate-reveal')
+    const css = gen.toCSS()
+    expect(css).toMatch(/@keyframes\s+reveal-up/)
+    expect(css).toContain('from { opacity: 0; }')
+    expect(css).toContain('to { opacity: 1; }')
+  })
+
+  /** Merged over the built-ins, not replacing them. */
+  it('should leave the built-in animations working', () => {
+    const gen = themed(REVEAL)
+    gen.generateBatch(['animate-reveal', 'animate-spin'])
+    const css = gen.toCSS()
+    expect(css).toMatch(/@keyframes\s+spin/)
+    expect(css).toMatch(/@keyframes\s+reveal-up/)
+    expect(css).toContain('.animate-spin')
+  })
+
+  /** Being a real utility is the point: it composes and it purges. */
+  it('should compose with variants', () => {
+    const gen = themed(REVEAL)
+    gen.generate('motion-reduce:animate-reveal')
+    const css = gen.toCSS()
+    expect(css).toContain('.motion-reduce\\:animate-reveal')
+    expect(css).toContain('animation: reveal-up 1s linear both')
+  })
+
+  it('should emit nothing for an animation nothing uses', () => {
+    const gen = themed(REVEAL)
+    gen.generate('p-4')
+    const css = gen.toCSS()
+    expect(css).not.toContain('reveal-up')
+    expect(css).not.toContain('.animate-reveal')
+  })
+
+  /** A theme may override a built-in's steps without losing the name. */
+  it('should let a theme redefine a built-in keyframe', () => {
+    const gen = themed({ keyframes: { spin: { from: { transform: 'rotate(90deg)' } } } })
+    gen.generate('animate-spin')
+    const css = gen.toCSS()
+    expect(css).toContain('rotate(90deg)')
+    expect(css).not.toContain('rotate(360deg)')
+  })
+})

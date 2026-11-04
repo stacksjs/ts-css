@@ -153,6 +153,18 @@ export interface Theme {
   containers: Record<string, string>
   borderRadius: Record<string, string>
   boxShadow: Record<string, string>
+  /**
+   * Named `@keyframes`, as selector -> declarations: `{ 'reveal-up': { from:
+   * { opacity: '0' }, to: { opacity: '1' } } }`. Merged over the built-in
+   * spin/ping/pulse/bounce, and emitted only for an animation actually used.
+   */
+  keyframes?: Record<string, Record<string, Record<string, string>>>
+  /**
+   * Named animations, as the `animation` shorthand: `{ reveal: 'reveal-up 1s
+   * linear both' }` makes `animate-reveal` a utility like any other, so it
+   * composes with variants and is purged when unused.
+   */
+  animation?: Record<string, string>
   /** Extend theme values without replacing defaults */
   extend?: Partial<Omit<Theme, 'extend'>>
 }

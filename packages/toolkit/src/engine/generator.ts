@@ -179,6 +179,22 @@ const ANIMATION_MAP: Record<string, Record<string, string>> = {
   'animate-bounce': { animation: 'bounce 1s infinite' },
 }
 
+/**
+ * Render a theme `keyframes` entry as a CSS block.
+ *
+ * The shape is the one Tailwind takes -- selector (`from`, `to`, `50%`) to
+ * declarations -- so a theme written for either engine renders the same.
+ */
+function keyframesToCSS(name: string, steps: Record<string, Record<string, string>>): string {
+  const body = Object.entries(steps)
+    .map(([step, declarations]) => {
+      const inner = Object.entries(declarations).map(([property, value]) => `${property}: ${value};`).join(' ')
+      return `  ${step} { ${inner} }`
+    })
+    .join('\n')
+  return `@keyframes ${name} {\n${body}\n}`
+}
+
 // Keyframe definitions for built-in animations
 const KEYFRAMES: Record<string, string> = {
   spin: `@keyframes spin {
@@ -2088,6 +2104,10 @@ interface ProcessedConfig {
   extendColors: Record<string, string | Record<string, string>> | null
   hasBlocklist: boolean
   hasShortcuts: boolean
+  /** `animate-<name>` for every theme animation, alongside the built-ins. */
+  themeAnimations: Record<string, Record<string, string>>
+  /** Built-in @keyframes with the theme's merged over them, by name. */
+  keyframes: Record<string, string>
 }
 
 function processConfig(config: CssConfig): ProcessedConfig {
@@ -2156,6 +2176,18 @@ function processConfig(config: CssConfig): ProcessedConfig {
   const skipStaticRadius = resolveSkipStaticRadius(config.theme.borderRadius)
   const skipStaticShadow = resolveSkipStaticShadow(config.theme.boxShadow)
 
+  // A theme animation is an ordinary static utility, so `animate-reveal`
+  // composes with variants and is purged when unused -- which a hand-written
+  // preflight class could never be. Theme keyframes merge OVER the built-ins
+  // rather than replacing them, so spin/ping/pulse/bounce keep working.
+  const themeAnimations: Record<string, Record<string, string>> = {}
+  for (const [name, value] of Object.entries(config.theme.animation ?? {}))
+    themeAnimations[`animate-${name}`] = { animation: value }
+
+  const keyframes: Record<string, string> = { ...KEYFRAMES }
+  for (const [name, steps] of Object.entries(config.theme.keyframes ?? {}))
+    keyframes[name] = keyframesToCSS(name, steps)
+
   const result: ProcessedConfig = {
     config,
     variantEnabled: config.variants as unknown as Record<string, boolean>,
@@ -2170,6 +2202,8 @@ function processConfig(config: CssConfig): ProcessedConfig {
     extendColors,
     hasBlocklist: blocklistRegexCache.length > 0 || blocklistExact.size > 0,
     hasShortcuts: Object.keys(config.shortcuts).length > 0,
+    themeAnimations,
+    keyframes,
   }
 
   processedConfigCache.set(config, result)
@@ -2520,7 +2554,7 @@ export class CSSGenerator {
     // (underline, italic, truncate, sr-only, transition, ...) emit NOTHING
     // under any variant — hover:underline generated no CSS at all.
     const baseRaw = parsed.base
-    let staticResult = STATIC_UTILITY_MAP[baseRaw]
+    let staticResult = STATIC_UTILITY_MAP[baseRaw] ?? this.processed.themeAnimations[baseRaw]
     if (staticResult && (
       (this.skipStaticRadius && baseRaw.startsWith('rounded'))
       || (this.skipStaticShadow && (baseRaw === 'shadow' || baseRaw.startsWith('shadow-')))
@@ -3675,7 +3709,7 @@ export class CSSGenerator {
     // Inject @keyframes for used animations
     if (this.usedKeyframes.size > 0) {
       for (const name of this.usedKeyframes) {
-        const kf = KEYFRAMES[name]
+        const kf = this.processed.keyframes[name]
         if (kf) {
           parts.push(minify ? minifyCSSBlock(kf) : kf)
         }
