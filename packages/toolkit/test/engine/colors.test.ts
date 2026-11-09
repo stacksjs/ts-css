@@ -1217,3 +1217,38 @@ describe('colorVariables: a palette read through CSS variables', () => {
     expect(compile(['bg-slate-900'])).not.toContain('var(--color-slate')
   })
 })
+
+describe('Nested color keys that hold a hyphen', () => {
+  // `hq: { 'accent-dark': ... }` is written `hq-accent-dark`. bg-, text- and
+  // border- found it; ring-, accent-, caret- and the rest looked for a
+  // palette named `hq-accent` and emitted nothing, so a focus ring in the
+  // dark accent was silently missing.
+  const config = {
+    ...defaultConfig,
+    theme: { ...defaultConfig.theme, colors: { ...defaultConfig.theme.colors, hq: { 'accent': '#114cfe', 'accent-dark': '#6b93ff', 'action-hover-dark': '#4d7bff' } } },
+  }
+  const css = (...classes: string[]) => {
+    const gen = new CSSGenerator(config as any)
+    for (const cls of classes) gen.generate(cls)
+    return gen.toCSS(false)
+  }
+
+  it('resolves the key for every colour utility, not only bg, text and border', () => {
+    expect(css('ring-hq-accent-dark')).toContain('--tc-ring-color: #6b93ff;')
+    expect(css('ring-hq-action-hover-dark')).toContain('--tc-ring-color: #4d7bff;')
+    expect(css('accent-hq-accent-dark')).toContain('accent-color: #6b93ff;')
+    expect(css('caret-hq-accent-dark')).toContain('caret-color: #6b93ff;')
+    expect(css('border-hq-accent-dark')).toContain('border-color: #6b93ff;')
+  })
+
+  it('keeps its opacity modifier and its variants', () => {
+    expect(css('ring-hq-accent-dark/35')).toContain('--tc-ring-color: rgb(107 147 255 / 0.35);')
+    expect(css('dark:focus:ring-hq-accent-dark/35')).toContain(':focus')
+  })
+
+  it('still resolves an ordinary shade first', () => {
+    expect(css('ring-hq-accent')).toContain('--tc-ring-color: #114cfe;')
+    expect(css('ring-blue-500')).toContain('--tc-ring-color: oklch(62.3% 0.214 259.815);')
+    expect(css('ring-hq-missing-dark')).not.toContain('--tc-ring-color')
+  })
+})

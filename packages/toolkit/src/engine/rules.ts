@@ -696,13 +696,19 @@ export function resolveColorValue(
     return opacity !== undefined ? applyOpacity(color, opacity) : color
   }
 
-  // Color with shade: blue-500, gray-300
+  // Color with shade: blue-500, gray-300. A shade key may itself hold a
+  // hyphen (`hq: { 'accent-dark': ... }` is `hq-accent-dark`), which the
+  // bg/text/border path already resolves from its flat cache. Splitting only
+  // at the last hyphen looked for a palette named `hq-accent`, so `ring-`,
+  // `accent-`, `caret-` and every other user of this resolver emitted
+  // nothing for such a key. Try each split, longest palette name first, so
+  // `blue-500` still resolves on the first try.
   const parts = colorKey.split('-')
-  if (parts.length >= 2) {
-    const shade = parts[parts.length - 1]
-    const colorName = parts.slice(0, -1).join('-')
+  for (let at = parts.length - 1; at >= 1; at--) {
+    const shade = parts.slice(at).join('-')
+    const colorName = parts.slice(0, at).join('-')
     const colorValue = config.theme.colors[colorName]
-    if (typeof colorValue === 'object' && colorValue[shade]) {
+    if (typeof colorValue === 'object' && colorValue !== null && typeof colorValue[shade] === 'string') {
       const color = themeColorValue(colorKey, colorValue[shade], colorName, variables)
       return opacity !== undefined ? applyOpacity(color, opacity) : color
     }
