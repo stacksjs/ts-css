@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.24...v0.3.25)
+
+## 🐛 Bug Fixes
+
+- **colors**: resolve a nested colour key that holds a hyphen for every utility ([24b9226](https://github.com/stacksjs/ts-css/commit/24b9226)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## 🔧 Chores
+
+- release v0.3.25 ([2552a08](https://github.com/stacksjs/ts-css/commit/2552a08)) _(by Chris Breuer <chrisbreuer93@gmail.com>)_
+
+## Contributors
+
+- _Chris Breuer <chrisbreuer93@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.23...v0.3.24)
 
 ## ✨ Features
