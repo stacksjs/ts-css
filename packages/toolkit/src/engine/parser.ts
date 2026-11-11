@@ -1903,7 +1903,11 @@ function isVariantSegment(segment: string): boolean {
   // an arbitrary argument and a `/name` container or group label: `hover`,
   // `group-hover`, `data-[state=open]`, `nth-[3n+1]`, `supports-[display:grid]`,
   // `@sm`, `@max-md`, `@min-[400px]`, `@sm/sidebar`, `group/item`.
-  return /^(?:@[a-z0-9]|[a-z])[a-z0-9.-]*(?:\[[^\]]+\])?(?:\/[\w-]+)?$/i.test(segment)
+  //
+  // A breakpoint may start with a digit (`2xl`, `3xl`). Requiring a letter
+  // first dropped every `2xl:` class at the scanner, so the widest default
+  // breakpoint generated nothing from markup while `xl:` beside it worked.
+  return /^(?:@[a-z0-9]|[a-z]|\d+[a-z])[a-z0-9.-]*(?:\[[^\]]+\])?(?:\/[\w-]+)?$/i.test(segment)
 }
 
 /**
@@ -2096,7 +2100,7 @@ export function extractClasses(content: string, options?: ExtractClassesOptions)
     let match
     // eslint-disable-next-line no-cond-assign
     while ((match = pattern.exec(content)) !== null) {
-      const quotedStrings = match[1].match(/["'`]([^"'`]+)["'`]/g)
+      const quotedStrings = match[1].match(/["'`]([^"'`]*)["'`]/g)
       if (quotedStrings) {
         for (const quoted of quotedStrings) {
           const cleaned = quoted.replace(/["'`]/g, '').replace(/\$\{[^}]+\}/g, ' ')

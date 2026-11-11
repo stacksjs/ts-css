@@ -2347,6 +2347,15 @@ function selectorClassToken(selector: string): string | undefined {
 
   skipImportant()
 
+  // A class that starts with a digit is written with the digit as a code
+  // point (`.\32 xl\:pr-0`, see escapeSelector). That escape is part of the
+  // first variant's name, so it is stepped over; left in place it stopped the
+  // scan at once and every `2xl:` utility ranked as nothing.
+  if (selector.charCodeAt(i) === 45 && selector.charCodeAt(i + 1) === 92) // -\
+    i++
+  if (selector.charCodeAt(i) === 92 && selector.charCodeAt(i + 1) === 51 && selector.charCodeAt(i + 3) === 32) // \3N␠
+    i += 4
+
   // Consume variant prefixes. Only an ESCAPED colon separates them: variant
   // prefixes live inside the class name, so their colons are escaped
   // (`.md\:hover\:m-0`), while the trailing pseudo-class colon is not
@@ -2408,6 +2417,25 @@ export function computeUtilityRank(selector: string): number {
   if (SIDE_UTILITY_RE.test(cls) || SIDE_RADIUS_RE.test(cls))
     return 2
   return 0
+}
+
+/**
+ * The media condition of an arbitrary viewport breakpoint, `min-[420px]` or
+ * `max-[40rem]`, or undefined when the variant is not one.
+ *
+ * Only a length is accepted (a number with a unit, or a `calc()`/`var()`
+ * the browser resolves). Anything else is not a width, and passing it through
+ * would write a media query that never matches while looking handled.
+ */
+export function arbitraryBreakpoint(variant: string): string | undefined {
+  const match = /^(min|max)-\[([^\]]+)\]$/.exec(variant)
+  if (!match)
+    return undefined
+  const size = match[2]!.replace(/_/g, ' ').trim()
+  if (!/^(?:\d*\.?\d+(?:px|r?em|ch|ex|vw|vh|vmin|vmax|svw|lvw|dvw|cm|mm|in|pt|pc)|(?:calc|var|min|max|clamp)\(.+\))$/i.test(size))
+    return undefined
+
+  return `(${match[1]}-width: ${size})`
 }
 
 export class CSSGenerator {
@@ -3149,6 +3177,8 @@ export class CSSGenerator {
         || (variant.startsWith('not-') && this.isNegationResolvable(variant.slice(4)))
         || this.screenBreakpoints.has(variant)
         || (variant.startsWith('max-') && this.screenBreakpoints.has(variant.slice(4)))
+        || (variant.startsWith('min-') && this.screenBreakpoints.has(variant.slice(4)))
+        || arbitraryBreakpoint(variant) !== undefined
         || (variant.charCodeAt(0) === 64 && this.containerQuery(variant.slice(1)) !== undefined)
         || variant === '*' || variant === '**'
         || nthVariantSelector(variant) !== undefined
@@ -3612,6 +3642,22 @@ export class CSSGenerator {
           mediaConditions.push(`(min-width: ${breakpoint})`)
           continue
         }
+        // min-[420px] / max-[600px]: a width that is nobody's named
+        // breakpoint. Unhandled, the whole rule was dropped, so a layout
+        // written for one odd width silently never applied.
+        const arbitrary = arbitraryBreakpoint(variant)
+        if (arbitrary) {
+          mediaConditions.push(arbitrary)
+          continue
+        }
+        // min-md is md, spelled out; it reads better beside a max-*.
+        if (variant.startsWith('min-')) {
+          const minBreakpoint = this.screenBreakpoints.get(variant.slice(4))
+          if (minBreakpoint) {
+            mediaConditions.push(`(min-width: ${minBreakpoint})`)
+            continue
+          }
+        }
         // max-* variants: max-md applies BELOW the md breakpoint. Without
         // this branch the variant was ignored and the utility applied at
         // every width — the opposite of the author's intent.
@@ -3707,11 +3753,25 @@ export class CSSGenerator {
         break
       }
     }
-    if (!needsEscape) {
+    // An identifier cannot start with a digit, nor with a hyphen and then a
+    // digit. `.2xl\:pr-0` is not a selector at all, so the browser dropped the
+    // whole rule and `2xl:` never applied. The digit is written as its code
+    // point; the space ends the escape, so a hex letter after it stays a letter.
+    const first = className.charCodeAt(0)
+    const second = className.charCodeAt(1)
+    const leadingDigit = first >= 48 && first <= 57
+    const hyphenDigit = first === 45 && second >= 48 && second <= 57
+    if (!needsEscape && !leadingDigit && !hyphenDigit) {
       return className
     }
     // eslint-disable-next-line no-control-regex
-    return className.replace(/[\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]/g, '\\$&')
+    const escaped = className.replace(/[\x00-\x2C\x2E\x2F\x3A-\x40\x5B-\x5E\x60\x7B-\x7F]/g, '\\$&')
+    if (leadingDigit)
+      return `\\3${className[0]} ${escaped.slice(1)}`
+    if (hyphenDigit)
+      return `-\\3${className[1]} ${escaped.slice(2)}`
+
+    return escaped
   }
 
   /**

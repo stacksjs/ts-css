@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'bun:test'
+import { defaultConfig } from '../../src/engine/config'
+import { arbitraryBreakpoint, CSSGenerator } from '../../src/engine/generator'
 import { extractClasses, parseClass } from '../../src/engine/parser'
 
 describe('parseClass', () => {
@@ -937,5 +939,102 @@ describe('bracket and colon syntax edge cases', () => {
     expect(expandBracketSyntax('text[red]', {})).toEqual(['text-red-500'])
     expect(expandBracketSyntax('text[white]', {})).toEqual(['text-white'])
     expect(expandBracketSyntax('text[arial]', {})).toEqual(['font-[arial]'])
+  })
+})
+
+describe('extractClasses: an empty string in a bound class', () => {
+  // `''` used to pair its closing quote with the opening quote of the next
+  // string, so the class after an empty branch was never extracted and its
+  // utility was never generated: `:class="inApp ? '' : 'max-md:mb-5'"` gave a
+  // margin of 0.
+  it('still finds the class in the other branch of a ternary', () => {
+    expect(extractClasses(`<div :class="inApp ? '' : 'max-md:mb-5'"></div>`).has('max-md:mb-5')).toBe(true)
+    expect(extractClasses(`<div :class="first ? 'rounded-t-none' : ''"></div>`).has('rounded-t-none')).toBe(true)
+    expect(extractClasses(`<div x-class="done ? 'line-through' : ''"></div>`).has('line-through')).toBe(true)
+  })
+
+  it('finds every class around several empty strings', () => {
+    const found = extractClasses(`<div :class="a ? '' : b ? 'opacity-45' : '' + (c ? 'bg-surface-raised' : '')"></div>`)
+    expect(found.has('opacity-45')).toBe(true)
+    expect(found.has('bg-surface-raised')).toBe(true)
+  })
+
+  it('extracts nothing from the empty string itself', () => {
+    const found = extractClasses(`<div :class="inApp ? '' : 'mb-5'"></div>`)
+    expect(found.has('')).toBe(false)
+    expect(found.has(':')).toBe(false)
+    expect(found.has('mb-5')).toBe(true)
+  })
+})
+
+describe('breakpoints that are not a plain word', () => {
+  const css = (className: string): string => {
+    const gen = new CSSGenerator(defaultConfig)
+    for (const found of extractClasses(`<div class="${className}"></div>`))
+      gen.generate(found)
+    return gen.toCSS(false, true)
+  }
+
+  it('scans a class on a breakpoint that starts with a digit', () => {
+    expect(extractClasses('<div class="2xl:pr-0"></div>').has('2xl:pr-0')).toBe(true)
+    // `\\32 ` is the digit 2 as a code point: a class cannot start with a bare digit.
+    expect(css('2xl:pr-0')).toBe('@media (min-width: 1536px){.\\32 xl\\:pr-0{padding-right:0}}')
+    expect(css('max-2xl:hidden')).toContain('max-width: 1535.98px')
+    expect(css('dark:2xl:hover:underline')).toContain('min-width: 1536px')
+  })
+
+  it('writes a selector a browser accepts for a class that starts with a digit', () => {
+    const gen = new CSSGenerator(defaultConfig)
+    expect(gen.escapeSelector('2xl:pr-0')).toBe('\\32 xl\\:pr-0')
+    // The space ends the escape, so the hex-looking letter after it is kept.
+    expect(gen.escapeSelector('2a')).toBe('\\32 a')
+    expect(gen.escapeSelector('-2xl:m-0')).toBe('-\\32 xl\\:m-0')
+    // Untouched: a digit anywhere but the start, and an ordinary class.
+    expect(gen.escapeSelector('mt-2')).toBe('mt-2')
+    expect(gen.escapeSelector('md:w-1/2')).toBe('md\\:w-1\\/2')
+  })
+
+  it('still refuses a segment that is only a number', () => {
+    expect(extractClasses('<div class="12:flex"></div>').has('12:flex')).toBe(false)
+  })
+
+  it('generates an arbitrary min and max width', () => {
+    expect(css('min-[420px]:grid-cols-2')).toContain('@media (min-width: 420px)')
+    expect(css('min-[420px]:grid-cols-2')).toContain('grid-template-columns')
+    expect(css('max-[40rem]:hidden')).toContain('@media (max-width: 40rem)')
+    expect(css('min-[calc(100vw_-_2rem)]:flex')).toContain('(min-width: calc(100vw - 2rem))')
+    expect(css('min-[420px]:max-[600px]:flex')).toContain('(min-width: 420px) and (max-width: 600px)')
+  })
+
+  it('reads min-md as md', () => {
+    expect(css('min-md:flex')).toContain('@media (min-width: 768px)')
+  })
+
+  it('drops a width that is not one, instead of applying the utility everywhere', () => {
+    expect(css('min-[banana]:flex')).toBe('')
+    expect(css('min-nope:flex')).toBe('')
+  })
+
+  it('knows an arbitrary breakpoint from anything else', () => {
+    expect(arbitraryBreakpoint('min-[420px]')).toBe('(min-width: 420px)')
+    expect(arbitraryBreakpoint('max-[37.5em]')).toBe('(max-width: 37.5em)')
+    expect(arbitraryBreakpoint('min-[red]')).toBeUndefined()
+    expect(arbitraryBreakpoint('data-[state=open]')).toBeUndefined()
+    expect(arbitraryBreakpoint('md')).toBeUndefined()
+  })
+})
+
+describe('a 2xl utility keeps its place in the cascade', () => {
+  it('orders the shorthand before the side it must not reset, as at every other breakpoint', () => {
+    const order = (first: string, second: string): boolean => {
+      const gen = new CSSGenerator(defaultConfig)
+      gen.generate(first)
+      gen.generate(second)
+      const css = gen.toCSS(false, true)
+      return css.indexOf('padding:') < css.indexOf('padding-right:')
+    }
+    // Authored side-first; the shorthand still has to come out first.
+    expect(order('xl:pr-0', 'xl:p-4')).toBe(true)
+    expect(order('2xl:pr-0', '2xl:p-4')).toBe(true)
   })
 })
