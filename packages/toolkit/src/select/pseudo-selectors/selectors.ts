@@ -53,19 +53,46 @@ export function compileGeneric<Node, ElementNode extends Node>(
   return e => compiled.some(c => c(e))
 }
 
+/**
+ * The element a relative selector is measured from.
+ *
+ * Mutable on purpose: `:has()` compiles its argument once and then evaluates
+ * it from a different subject for every candidate, so the anchor is read at
+ * match time rather than captured at compile time the way `:scope` captures
+ * `options.context`.
+ */
+export interface SelectorAnchor<ElementNode> {
+  current: ElementNode | null
+}
+
+export function isCombinator(token: Selector): boolean {
+  return token.type === 'descendant' || token.type === 'child' || token.type === 'sibling'
+    || token.type === 'adjacent' || token.type === 'parent' || token.type === 'column-combinator'
+}
+
+/**
+ * Compile one complex selector.
+ *
+ * With an `anchor`, `tokens` is a RELATIVE selector (Selectors 4), as in the
+ * argument to `:has()`: its leftmost compound is the anchor itself, and an
+ * argument with no leading combinator takes the implied descendant one. So
+ * `> span` is "a span whose parent is the anchor" and `section span` is "a
+ * span under a section under the anchor". Without the anchor, the empty
+ * leading compound was ALWAYS_TRUE, which made `> span` "a span whose parent
+ * is anything" and let `section span` match through a section OUTSIDE the
+ * subject.
+ */
 export function parseAndCompile<Node, ElementNode extends Node>(
   tokens: Selector[],
   options: Options<Node, ElementNode>,
+  anchor?: SelectorAnchor<ElementNode>,
 ): CompiledQuery<ElementNode> {
   const adapter = options.adapter
   // Split into compound buckets; combinator markers stay in `combs`.
   const compounds: Selector[][] = [[]]
   const combs: Selector[] = []
   for (const t of tokens) {
-    if (
-      t.type === 'descendant' || t.type === 'child' || t.type === 'sibling'
-      || t.type === 'adjacent' || t.type === 'parent' || t.type === 'column-combinator'
-    ) {
+    if (isCombinator(t)) {
       combs.push(t)
       compounds.push([])
     }
@@ -74,9 +101,16 @@ export function parseAndCompile<Node, ElementNode extends Node>(
     }
   }
 
+  if (anchor && compounds[0]!.length > 0) {
+    compounds.unshift([])
+    combs.unshift({ type: 'descendant' } as Selector)
+  }
+
   // Build left-to-right. Within each compound, sort by procedure ascending
   // so the cheapest test ends up outermost (runs first).
-  let func: CompiledQuery<ElementNode> = ALWAYS_TRUE
+  let func: CompiledQuery<ElementNode> = anchor
+    ? (elem => elem === anchor.current)
+    : ALWAYS_TRUE
   for (let ci = 0; ci < compounds.length; ci++) {
     const compound = compounds[ci]!.slice().sort((a, b) => tokenProcedure(a) - tokenProcedure(b))
     for (const t of compound)

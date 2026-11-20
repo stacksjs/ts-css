@@ -8,6 +8,7 @@
 import type { Selector } from '../../what'
 import type { CompiledQuery, Options } from '../types'
 import { parse as parseSelectorString } from '../../what'
+import type { SelectorAnchor } from './selectors'
 import { compileGeneric, parseAndCompile } from './selectors'
 
 interface PseudoToken {
@@ -81,7 +82,11 @@ export function compilePseudo<Node, ElementNode extends Node>(
   if (token.type === 'pseudo' && name === 'has') {
     if (!Array.isArray(data))
       return next
-    const tests = (data as Selector[][]).map(seg => parseAndCompile(seg, options))
+    // Each argument is a relative selector measured from the element being
+    // tested, so it compiles against an anchor set per candidate below.
+    const anchor: SelectorAnchor<ElementNode> = { current: null }
+    const segments = data as Selector[][]
+    const tests = segments.map(seg => parseAndCompile(seg, options, anchor))
     // Collapse the sub-test list into a single predicate so the inner
     // descendant loop only invokes one function per node.
     const subjectTest: CompiledQuery<ElementNode> = tests.length === 1
@@ -93,22 +98,41 @@ export function compilePseudo<Node, ElementNode extends Node>(
           }
           return false
         }) as any
+    // `:has(+ input)` and `:has(~ input)` look AFTER the subject, not inside
+    // it, so the search has to reach its following siblings and what is under
+    // them. Searching only descendants meant those never matched at all.
+    const reachesSiblings = segments.some(seg => seg[0]?.type === 'adjacent' || seg[0]?.type === 'sibling')
     return (e) => {
-      // Iterative DFS using `pop` (O(1)) instead of `shift` (O(n)). The
-      // iteration order is reversed but `:has()` doesn't care about order
-      // — it stops at the first descendant that satisfies the test.
       const stack: any[] = adapter.getChildren(e).slice()
-      while (stack.length > 0) {
-        const cur = stack.pop()
-        if (!adapter.isTag(cur))
-          continue
-        if (subjectTest(cur as any))
-          return next(e)
-        const kids = adapter.getChildren(cur as any)
-        for (let i = 0; i < kids.length; i++)
-          stack.push(kids[i])
+      if (reachesSiblings) {
+        const siblings: any[] = adapter.getSiblings(e) as any
+        const at = siblings.indexOf(e)
+        for (let i = at + 1; i < siblings.length; i++)
+          stack.push(siblings[i])
       }
-      return false
+      // Saved and restored, so a `:has()` evaluated from inside another
+      // match on a different subject cannot leave this one pointing at it.
+      const previous = anchor.current
+      anchor.current = e
+      try {
+        // Iterative DFS using `pop` (O(1)) instead of `shift` (O(n)). The
+        // iteration order is reversed but `:has()` doesn't care about order
+        // — it stops at the first candidate that satisfies the test.
+        while (stack.length > 0) {
+          const cur = stack.pop()
+          if (!adapter.isTag(cur))
+            continue
+          if (subjectTest(cur as any))
+            return next(e)
+          const kids = adapter.getChildren(cur as any)
+          for (let i = 0; i < kids.length; i++)
+            stack.push(kids[i])
+        }
+        return false
+      }
+      finally {
+        anchor.current = previous
+      }
     }
   }
 

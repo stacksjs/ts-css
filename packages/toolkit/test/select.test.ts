@@ -129,3 +129,68 @@ describe('compile cache', () => {
     expect(a).not.toBe(b)
   })
 })
+
+/**
+ * The argument to `:has()` is a RELATIVE selector (Selectors 4): it is
+ * measured from the element being tested. It used to be compiled on its own,
+ * so `> span` meant "a span whose parent is anything" and `section span` could
+ * match through a section outside the subject; and only descendants were
+ * searched, so `+` and `~` could never match. Expected results agree with
+ * css-select and the spec. Reported in stacksjs/ts-css#44.
+ */
+describe(':has() relative selectors', () => {
+  // <section id="outer"><div id="inner"><span/></div></section><input id="c">
+  const doc = () => el('body', {},
+    el('section', { id: 'outer' }, el('div', { id: 'inner' }, el('span'))),
+    el('input', { id: 'c' }),
+  )
+  const ids = (selector: string, root = doc()): string[] =>
+    selectAll(selector, root, opts).map(node => node.attrs.id).filter(Boolean) as string[]
+
+  it('should anchor > to the subject', () => {
+    expect(ids(':has(> span)')).toEqual(['inner'])
+    expect(ids('section:has(> span)')).toEqual([])
+  })
+
+  /** `#inner` is inside the section, so no section lies between it and the span. */
+  it('should not match through an ancestor outside the subject', () => {
+    expect(ids('#inner:has(section span)')).toEqual([])
+  })
+
+  it('should keep the implied descendant combinator', () => {
+    expect(ids('section:has(span)')).toEqual(['outer'])
+    expect(ids('section:has(div span)')).toEqual(['outer'])
+  })
+
+  it('should look at following siblings for + and ~', () => {
+    expect(ids('section:has(+ input)')).toEqual(['outer'])
+    expect(ids('section:has(~ input)')).toEqual(['outer'])
+  })
+
+  it('should hold + to the very next sibling', () => {
+    const root = el('body', {}, el('section', { id: 's' }), el('p'), el('input'))
+    expect(ids('section:has(+ input)', root)).toEqual([])
+    expect(ids('section:has(~ input)', root)).toEqual(['s'])
+  })
+
+  it('should reach under a following sibling', () => {
+    const root = el('body', {}, el('section', { id: 's' }), el('div', {}, el('span')))
+    expect(ids('section:has(+ div span)', root)).toEqual(['s'])
+    expect(ids('section:has(+ div > em)', root)).toEqual([])
+  })
+
+  it('should never look at a preceding sibling', () => {
+    const root = el('body', {}, el('input'), el('section', { id: 's' }))
+    expect(ids('section:has(~ input)', root)).toEqual([])
+  })
+
+  /** Each `:has()` keeps its own anchor, including when nested in another. */
+  it('should anchor a nested :has() to its own subject', () => {
+    expect(ids('section:has(div:has(> span))')).toEqual(['outer'])
+    expect(ids('section:has(> div:has(> div))')).toEqual([])
+  })
+
+  it('should match when any argument matches', () => {
+    expect(ids('section:has(> p, > div)')).toEqual(['outer'])
+  })
+})
