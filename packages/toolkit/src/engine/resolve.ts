@@ -44,17 +44,31 @@ export interface ResolvedUtility {
 }
 
 /**
+ * Classes that exist to be referred to and emit nothing themselves: `group`
+ * and `peer`, named or not, which a `group-*` or `peer-*` variant elsewhere
+ * points at.
+ */
+const MARKER_CLASS = /^(?:group|peer)(?:\/[\w-]+)?$/
+
+/**
  * Resolve one class into the rules it generates.
  *
- * An empty result means the engine generates nothing for the class -- a typo,
- * or a utility it rejects. A renderer should report that rather than guess,
- * which is the same answer the browser gets: no rule.
+ * An empty result means the engine does not know the class -- a typo, or a
+ * utility it rejects. A renderer should report that rather than guess, which
+ * is the same answer the browser gets: no rule.
+ *
+ * A class the engine knows but that sets nothing -- `group`, `peer/draft` --
+ * resolves to a single entry with no properties instead, so it is not mistaken
+ * for an unknown one and reported as a typo.
  */
 export function resolveUtility(className: string, generator: CSSGenerator): ResolvedUtility[] {
   const rules = generator.rulesFor(className)
-  if (rules.length === 0)
-    return []
   const parsed = parseClass(className)
+  if (rules.length === 0) {
+    if (MARKER_CLASS.test(parsed.base))
+      return [{ variants: [...parsed.variants], properties: {}, important: parsed.important }]
+    return []
+  }
   return rules.map(rule => ({
     variants: [...parsed.variants],
     properties: withoutImportant(rule.properties),
@@ -179,22 +193,88 @@ function parseAlpha(value: string | undefined): number {
 const OKLCH = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)(?:deg)?\s*(?:\/\s*([\d.]+%?))?\s*\)$/i
 const HEX = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
 
-/**
- * A colour as channels a native renderer can hand to its colour type.
- *
- * Hex stays sRGB. An oklch colour -- every palette colour in Tailwind v4 --
- * is converted into `space`, Display P3 by default, because the palette was
- * built in P3: 95 of the default 242 lie outside sRGB and none outside P3, and
- * a browser on a P3 display renders them unclamped. Converting to sRGB would
- * clamp two in five of them, reintroducing the very mismatch with the browser
- * this exists to remove. Pass `'srgb'` for a renderer with no wide-gamut
- * colour type.
- *
- * Undefined for anything else (`currentColor`, a variable, a named colour),
- * which the renderer resolves or reports.
- */
-export function resolveColor(value: string, space: 'srgb' | 'display-p3' = 'display-p3'): ResolvedColor | undefined {
+export interface ColorOptions {
+  /**
+   * The space to put an oklch colour in. Display P3 by default, because the
+   * palette was built in P3: 95 of the default 242 lie outside sRGB and none
+   * outside P3, and a browser on a P3 display renders them unclamped.
+   * Converting to sRGB would clamp two in five of them, reintroducing the
+   * very mismatch with the browser this exists to remove. Pass `'srgb'` for a
+   * renderer with no wide-gamut colour type.
+   */
+  space?: 'srgb' | 'display-p3'
+  /**
+   * Custom properties to resolve `var()` against, for ONE scheme: the light
+   * values, or the dark ones. A role colour reaches the engine as
+   * `var(--stx-fg, <light value>)` and its dark value lives with whoever set
+   * the variable, so the caller supplies the map for the scheme it is drawing
+   * -- merging in `generator.variables(mode)` for the engine's own tokens.
+   * A variable not in the map falls back to the fallback written in the
+   * `var()`, as the browser does when nothing set it.
+   */
+  variables?: Record<string, string>
+}
+
+/** How deep `var()` may nest before it is treated as a cycle. */
+const MAX_VARIABLE_DEPTH = 8
+
+/** Split `a, b(c, d), e` on its top-level commas. */
+function splitTopLevel(text: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let from = 0
+  for (let i = 0; i < text.length; i++) {
+    const character = text[i]
+    if (character === '(')
+      depth++
+    else if (character === ')')
+      depth--
+    else if (character === ',' && depth === 0) {
+      parts.push(text.slice(from, i))
+      from = i + 1
+    }
+  }
+  parts.push(text.slice(from))
+  return parts.map(part => part.trim())
+}
+
+function resolveColorAt(value: string, options: ColorOptions, depth: number): ResolvedColor | undefined {
   const trimmed = value.trim()
+  const space = options.space ?? 'display-p3'
+
+  // var(--name) or var(--name, fallback): the scheme's own value first, then
+  // the fallback, which is what the browser paints when nothing set it.
+  if (/^var\(/i.test(trimmed) && trimmed.endsWith(')')) {
+    if (depth >= MAX_VARIABLE_DEPTH)
+      return undefined
+    const [name, ...fallback] = splitTopLevel(trimmed.slice(4, -1))
+    const set = name ? options.variables?.[name] : undefined
+    if (set !== undefined) {
+      const resolved = resolveColorAt(set, options, depth + 1)
+      if (resolved !== undefined)
+        return resolved
+    }
+    return fallback.length > 0 ? resolveColorAt(fallback.join(', '), options, depth + 1) : undefined
+  }
+
+  // color-mix(in <space>, <colour> N%, transparent): how the engine writes
+  // opacity on a colour that is a variable (`bg-surface/50`), since the
+  // variable's channels are not known when the sheet is built. Mixing with
+  // transparent keeps the colour and scales its alpha. Any other color-mix is
+  // not this form, and is left for the renderer to report.
+  const mix = /^color-mix\(\s*in\s+[\w-]+\s*,(.*)\)$/i.exec(trimmed)
+  if (mix !== null) {
+    const [first, second] = splitTopLevel(mix[1]!)
+    if (first === undefined || second?.toLowerCase() !== 'transparent')
+      return undefined
+    const weighted = /^(.*\S)\s+([\d.]+)%$/.exec(first)
+    if (weighted === null)
+      return undefined
+    const color = resolveColorAt(weighted[1]!, options, depth + 1)
+    if (color === undefined)
+      return undefined
+    return { ...color, alpha: color.alpha * Number.parseFloat(weighted[2]!) / 100 }
+  }
 
   const hex = HEX.exec(trimmed)
   if (hex !== null) {
@@ -218,6 +298,21 @@ export function resolveColor(value: string, space: 'srgb' | 'display-p3' = 'disp
   }
 
   return undefined
+}
+
+/**
+ * A colour as channels a native renderer can hand to its colour type.
+ *
+ * Hex stays sRGB; an oklch colour -- every palette colour in Tailwind v4 --
+ * goes into `options.space`. `var()` resolves against `options.variables` and
+ * then its own fallback, and the `color-mix(..., transparent)` form the engine
+ * uses for opacity on a variable colour comes back with its alpha scaled.
+ *
+ * Undefined for anything else (`currentColor`, a named colour, an unset
+ * variable with no fallback), which the renderer resolves or reports.
+ */
+export function resolveColor(value: string, options: ColorOptions = {}): ResolvedColor | undefined {
+  return resolveColorAt(value, options, 0)
 }
 
 /** `#rrggbb`, or `#rrggbbaa` when not opaque. Meaningful for an sRGB colour. */

@@ -4111,6 +4111,28 @@ export class CSSGenerator {
   private probe: CSSGenerator | null = null
 
   /**
+   * The custom properties this engine defines, as one mode sees them.
+   *
+   * These are the `theme.modes` tokens: `--color-<name>` at its base value,
+   * or at the value `mode` gives it where it gives one. A renderer that is not
+   * a browser cannot apply the `:root` and per-mode blocks itself, so this is
+   * how it learns what a `var(--color-panel, ...)` in a resolved utility
+   * should read in dark mode. Pass the result to `resolveColor`'s `variables`.
+   *
+   * Variables set by something other than the engine -- a framework's role
+   * tokens -- are not here, because their values were never given to it; the
+   * caller merges those in.
+   */
+  variables(mode?: string): Record<string, string> {
+    const variables: Record<string, string> = {}
+    for (const token of this.processed.modeTokens) {
+      const value = mode === undefined ? undefined : token.byMode[mode]
+      variables[`--color-${token.name}`] = value ?? token.base
+    }
+    return variables
+  }
+
+  /**
    * Reset the generator state (clears all generated CSS and caches)
   */
   reset(): void {
