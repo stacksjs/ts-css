@@ -1,3 +1,24 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.26...v0.3.27)
+
+## ✨ Features
+
+- **engine**: tell markers from unknowns, and resolve variables per scheme ([9784ad1](https://github.com/stacksjs/ts-css/commit/9784ad1)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#38](https://github.com/stacksjs/ts-css/issues/38))
+- **engine**: resolve utilities for a renderer that is not a browser ([b7a6437](https://github.com/stacksjs/ts-css/commit/b7a6437)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#38](https://github.com/stacksjs/ts-css/issues/38))
+
+## 🐛 Bug Fixes
+
+- **engine**: read every background size and position spelling ([9d05dfa](https://github.com/stacksjs/ts-css/commit/9d05dfa)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+- **select**: measure a :has() argument from the element being tested ([a7fbe3b](https://github.com/stacksjs/ts-css/commit/a7fbe3b)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#44](https://github.com/stacksjs/ts-css/issues/44))
+- **optimize**: leave a unicode-range descriptor as written ([aa5f185](https://github.com/stacksjs/ts-css/commit/aa5f185)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#44](https://github.com/stacksjs/ts-css/issues/44))
+
+## 🔧 Chores
+
+- release v0.3.27 ([6767ce6](https://github.com/stacksjs/ts-css/commit/6767ce6)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.25...v0.3.26)
 
 ## 🐛 Bug Fixes
