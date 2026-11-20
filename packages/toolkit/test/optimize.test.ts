@@ -90,3 +90,36 @@ describe('syntax.specificity', () => {
     expect(syntax.specificity(ast)).toEqual([1, 1, 1])
   })
 })
+
+/**
+ * `<urange>` is a token of its own in the spec, but the tokenizer splits it
+ * like any other value -- `U+0000-00FF` arrives as an identifier `U`, a
+ * number `+0000` and a dimension `-00FF` -- and the number rules stripped the
+ * `+`. `U0000-00FF` is not a `<urange>`, so the browser discarded the whole
+ * descriptor and a subsetted @font-face (every Google Fonts stylesheet) loaded
+ * its full character set instead. Reported in stacksjs/ts-css#44.
+ */
+describe('unicode-range', () => {
+  it('should keep the + in every urange form', () => {
+    const css = '@font-face{font-family:Inter;src:url(inter.woff2);unicode-range:U+0000-00FF, U+0131, U+00A0, u+4??}'
+    expect(minify(css).css).toBe('@font-face{font-family:Inter;src:url(inter.woff2);unicode-range:U+0000-00FF,U+0131,U+00A0,u+4??}')
+  })
+
+  /**
+   * Not only the `+`: these fragments are not numbers, so no number rule may
+   * touch them. `U+0-0` would otherwise lose a digit to the negative-zero
+   * rule, and `U+1e5` would be read as an exponent.
+   */
+  it('should apply no number rule inside the descriptor', () => {
+    expect(minify('@font-face{unicode-range:U+0-0,U+1e5,U+0-7F}').css)
+      .toBe('@font-face{unicode-range:U+0-0,U+1e5,U+0-7F}')
+  })
+
+  it('should match the property name case-insensitively', () => {
+    expect(minify('@font-face{UNICODE-RANGE:U+0025-00FF}').css).toBe('@font-face{UNICODE-RANGE:U+0025-00FF}')
+  })
+
+  it('should still compress numbers everywhere else', () => {
+    expect(minify('.a{margin:0.50px;opacity:+0.5}').css).toBe('.a{margin:.5px;opacity:.5}')
+  })
+})

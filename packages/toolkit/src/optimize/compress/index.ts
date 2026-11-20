@@ -102,11 +102,30 @@ function compactContainerWhitespace(node: { children: any }): void {
   }
 }
 
+/**
+ * Whether the walk is inside a `unicode-range` descriptor.
+ *
+ * `<urange>` is its own token in the spec, but the tokenizer splits it like
+ * any other value: `U+0000-00FF` arrives as `Identifier("U")` then
+ * `Number("+0000")` then `Dimension("-00", "FF")`, and `U+00A0` as a
+ * Dimension with unit `A0`. Those fragments are not numbers, so no number
+ * rule applies to them. Dropping the `+` gave `U0000-00FF`, which is not a
+ * `<urange>` at all, so the browser threw away the whole declaration and
+ * every Google Fonts `@font-face` loaded its full character set. Other rules
+ * would have broken it differently -- `U+0-0` would lose a digit to the
+ * negative-zero rule -- so the descriptor is left exactly as written.
+ */
+function inUnicodeRange(declaration: { property: string } | null | undefined): boolean {
+  return declaration?.property.toLowerCase() === 'unicode-range'
+}
+
 export function compressTree(ast: CssNode, options: CompressOptions = {}): void {
   const fp = options.floatPrecision ?? null
   const round = fp === null ? null : (s: string) => roundNumberString(s, fp)
   walk(ast, {
     enter(node, item, list) {
+      if ((node.type === 'Number' || node.type === 'Percentage' || node.type === 'Dimension') && inUnicodeRange(this.declaration))
+        return
       switch (node.type) {
         case 'Number': {
           const v = round ? round(node.value) : node.value
