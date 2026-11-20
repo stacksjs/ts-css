@@ -298,6 +298,9 @@ export const backgroundOriginRule: UtilityRule = (parsed) => {
 }
 
 export const backgroundPositionRule: UtilityRule = (parsed) => {
+  // `bg-position-[…]`, the v4 spelling of an arbitrary position.
+  if (parsed.utility === 'bg-position')
+    return parsed.arbitrary && parsed.value ? { 'background-position': parsed.value } : undefined
   return BACKGROUND_POSITION_POSITIONS[parsed.base] ? { 'background-position': BACKGROUND_POSITION_POSITIONS[parsed.base] } : undefined
 }
 
@@ -306,6 +309,9 @@ export const backgroundRepeatRule: UtilityRule = (parsed) => {
 }
 
 export const backgroundSizeRule: UtilityRule = (parsed) => {
+  // `bg-size-[…]`, the v4 spelling of an arbitrary size.
+  if (parsed.utility === 'bg-size')
+    return parsed.arbitrary && parsed.value ? { 'background-size': parsed.value } : undefined
   return BACKGROUND_SIZE_SIZES[parsed.base] ? { 'background-size': BACKGROUND_SIZE_SIZES[parsed.base] } : undefined
 }
 

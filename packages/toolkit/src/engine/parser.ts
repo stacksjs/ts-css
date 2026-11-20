@@ -1485,7 +1485,7 @@ function parseClassImpl(className: string): Omit<ParsedClass, 'base'> {
     // Check for type hint in arbitrary value: text-[color:var(--muted)]
     // Type hints are: color, length, url, number, percentage, position, etc.
     // Don't match if it looks like a CSS variable var(--...) or CSS function
-    const typeHintMatch = value.match(/^(color|length|url|number|percentage|position|line-width|absolute-size|relative-size|image|angle|time|flex|string|family-name):(.*)/i)
+    const typeHintMatch = value.match(/^(color|length|size|bg-size|url|number|percentage|position|line-width|absolute-size|relative-size|image|angle|time|flex|string|family-name):(.*)/i)
     if (typeHintMatch) {
       typeHint = typeHintMatch[1].toLowerCase()
       value = typeHintMatch[2]
@@ -1575,7 +1575,7 @@ function parseClassImpl(className: string): Omit<ParsedClass, 'base'> {
 
     // Check for type hint in arbitrary value: text-[color:var(--muted)]
     // Type hints are: color, length, url, number, percentage, position, etc.
-    const typeHintMatch = value.match(/^(color|length|url|number|percentage|position|line-width|absolute-size|relative-size|image|angle|time|flex|string|family-name):(.*)/i)
+    const typeHintMatch = value.match(/^(color|length|size|bg-size|url|number|percentage|position|line-width|absolute-size|relative-size|image|angle|time|flex|string|family-name):(.*)/i)
     if (typeHintMatch) {
       typeHint = typeHintMatch[1].toLowerCase()
       value = typeHintMatch[2]

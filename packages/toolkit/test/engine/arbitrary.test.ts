@@ -818,3 +818,54 @@ describe('arbitrary filter amounts', () => {
     expect(saturate).toContain('var(--tc-backdrop-blur, )')
   })
 })
+
+/**
+ * Background size and position, every spelling Tailwind v4 accepts.
+ *
+ * The parser did not recognise `size` as a type hint, so `bg-[size:…]` was not
+ * split: `size:0.75rem 0.75rem` travelled whole as a colour and came out as
+ * `background-color: size:0.75rem 0.75rem;`, a declaration no browser parses.
+ * `bg-size-[…]` and `bg-position-[…]` generated nothing. Expected values are
+ * from a real tailwindcss 4.3.3 build.
+ */
+describe('background size and position hints', () => {
+  const declarationOf = (className: string): string | undefined => {
+    const gen = new CSSGenerator(defaultConfig)
+    gen.generate(className)
+    return gen.toCSS(false).match(/\{\s*([^}]*?);?\s*\}/)?.[1]?.trim()
+  }
+
+  it('should read every size spelling as background-size', () => {
+    for (const className of ['bg-[size:1px_2px]', 'bg-[length:1px_2px]', 'bg-[bg-size:1px_2px]', 'bg-size-[1px_2px]'])
+      expect(declarationOf(className)).toBe('background-size: 1px 2px')
+  })
+
+  /** Tailwind reads a percentage on `bg-[…]` as a position. */
+  it('should read every position spelling as background-position', () => {
+    expect(declarationOf('bg-[position:1px_2px]')).toBe('background-position: 1px 2px')
+    expect(declarationOf('bg-position-[1px_2px]')).toBe('background-position: 1px 2px')
+    expect(declarationOf('bg-[percentage:50%]')).toBe('background-position: 50%')
+  })
+
+  /**
+   * Tailwind emits `background-color: 1px` here, with the hint stripped -- a
+   * declaration the browser drops. Generating nothing is the same result
+   * without shipping a bogus rule, and it is what this engine does for every
+   * other hint a utility cannot express.
+   */
+  it('should drop a hint it does not recognise rather than paste it in', () => {
+    expect(declarationOf('bg-[bogus:1px]')).toBeUndefined()
+    expect(declarationOf('bg-[bg-position:1px_2px]')).toBeUndefined()
+  })
+
+  it('should keep a URL with a colon in it, and plain colours', () => {
+    expect(declarationOf('bg-[url(https://a.com/b.png)]')).toBe('background-image: url(https://a.com/b.png)')
+    expect(declarationOf('bg-[color:red]')).toBe('background-color: red')
+    expect(declarationOf('bg-[red]')).toBe('background-color: red')
+  })
+
+  /** Tailwind has `bg-cover`; `bg-size-cover` is not a utility there either. */
+  it('should not invent named bg-size utilities', () => {
+    expect(declarationOf('bg-size-cover')).toBeUndefined()
+  })
+})

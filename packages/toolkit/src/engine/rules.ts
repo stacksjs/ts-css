@@ -431,7 +431,11 @@ const TYPE_HINT_PROPS: Record<string, Record<string, string>> = {
     image: 'background-image',
     url: 'background-image',
     position: 'background-position',
+    // Tailwind reads a percentage on `bg-[…]` as a position, not a size.
+    percentage: 'background-position',
     length: 'background-size',
+    size: 'background-size',
+    'bg-size': 'background-size',
   },
   text: {
     color: 'color',
@@ -503,6 +507,16 @@ export const colorRule: UtilityRule = (parsed, config) => {
   if (parsed.arbitrary && parsed.typeHint) {
     const hintedProp = TYPE_HINT_PROPS[parsed.utility]?.[parsed.typeHint]
     return hintedProp ? { [hintedProp]: value } : undefined
+  }
+
+  // A hint the parser does not recognise is still shaped like one, and a
+  // colour never starts with `word:`. Passed through, it became a declaration
+  // carrying the hint as text -- `bg-[bogus:1px]` was `background-color:
+  // bogus:1px`, which no browser parses -- so it is dropped like any other
+  // hint this utility cannot express. `url(https://…)` has a `(` before its
+  // colon and is not caught.
+  if (parsed.arbitrary && /^[a-z][a-z-]*:/i.test(value)) {
+    return undefined
   }
 
   // An untyped `bg-[…]` holding an image function is a background-image;
