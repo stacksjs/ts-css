@@ -1,3 +1,21 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.28...v0.3.29)
+
+## ✨ Features
+
+- **engine**: write colours as color(display-p3), and tell which fit sRGB ([7bc5f69](https://github.com/stacksjs/ts-css/commit/7bc5f69)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#47](https://github.com/stacksjs/ts-css/issues/47))
+
+## 🐛 Bug Fixes
+
+- **engine**: resolve rgb() and rgba() colours ([670e2da](https://github.com/stacksjs/ts-css/commit/670e2da)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#46](https://github.com/stacksjs/ts-css/issues/46))
+
+## 🔧 Chores
+
+- release v0.3.29 ([7b187d4](https://github.com/stacksjs/ts-css/commit/7b187d4)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.27...v0.3.28)
 
 ## 🐛 Bug Fixes
