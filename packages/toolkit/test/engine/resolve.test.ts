@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'bun:test'
 import { defaultConfig } from '../../src/engine/config'
 import { CSSGenerator } from '../../src/engine/generator'
-import { colorToHex, resolveColor, resolveLength, resolveLineHeight, resolveUtility } from '../../src/engine/resolve'
+import { colorToCSS, colorToHex, isInSrgbGamut, resolveColor, resolveLength, resolveLineHeight, resolveUtility } from '../../src/engine/resolve'
 
 const gen = () => new CSSGenerator(defaultConfig)
 
@@ -288,5 +288,50 @@ describe('resolveColor with rgb()', () => {
   it('should not resolve a malformed rgb()', () => {
     for (const value of ['rgb(1_2_3)', 'rgb(1, 2)', 'rgb(a b c)', 'rgb(1 2 3 /)', 'rgb()'])
       expect(resolveColor(value)).toBeUndefined()
+  })
+})
+
+/**
+ * Display P3 output (stacksjs/ts-css#47). A host that draws P3 needs the P3
+ * value written out, and needs to know which colours sRGB already holds, so it
+ * ships P3 only where the hex would clamp.
+ */
+describe('colorToCSS and isInSrgbGamut', () => {
+  const palette = () => {
+    const colors = defaultConfig.theme.colors as Record<string, unknown>
+    return Object.values(colors).flatMap(shades => typeof shades === 'object' && shades !== null ? Object.values(shades as Record<string, string>) : [])
+  }
+
+  it('should write a P3 colour as color(display-p3), to four places', () => {
+    expect(colorToCSS(resolveColor('oklch(62.3% 0.214 259.815)')!)).toBe('color(display-p3 0.2664 0.4912 0.9886)')
+    expect(colorToCSS(resolveColor('oklch(0% 0 0)')!)).toBe('color(display-p3 0 0 0)')
+  })
+
+  it('should write the alpha after a slash only when not opaque', () => {
+    expect(colorToCSS(resolveColor('color-mix(in oklab, oklch(62.3% 0.214 259.815) 50%, transparent)')!)).toBe('color(display-p3 0.2664 0.4912 0.9886 / 0.5)')
+  })
+
+  it('should write an sRGB colour as hex', () => {
+    expect(colorToCSS(resolveColor('#ff000080')!)).toBe('#ff000080')
+    expect(colorToCSS(resolveColor('oklch(62.3% 0.214 259.815)', { space: 'srgb' })!)).toBe('#2b7fff')
+  })
+
+  it('should tell a colour sRGB clamps from one it holds', () => {
+    // blue-500 leaves sRGB; red-500 and slate-500 do not.
+    expect(isInSrgbGamut(resolveColor('oklch(62.3% 0.214 259.815)')!)).toBe(false)
+    expect(isInSrgbGamut(resolveColor('oklch(63.7% 0.237 25.331)')!)).toBe(true)
+    expect(isInSrgbGamut(resolveColor('oklch(55.4% 0.046 257.417)')!)).toBe(true)
+    expect(isInSrgbGamut(resolveColor('#ff0000')!)).toBe(true)
+  })
+
+  /** Pale tints past the edge by less than half an 8-bit step draw exactly as hex. */
+  it('should count a colour within rounding of sRGB as in it', () => {
+    // orange-50: its brightest channel lands at 1.0009, which rounds to ff.
+    expect(isInSrgbGamut(resolveColor('oklch(98% 0.016 73.684)')!)).toBe(true)
+  })
+
+  it('should find 82 of the default palette outside sRGB', () => {
+    const outside = palette().map(value => resolveColor(value)).filter(color => color !== undefined && !isInSrgbGamut(color))
+    expect(outside.length).toBe(82)
   })
 })

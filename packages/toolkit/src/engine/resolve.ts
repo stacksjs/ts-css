@@ -179,6 +179,13 @@ const XYZ_TO_LINEAR_P3: readonly Vector[] = [
   [11844 / 330415, -50337 / 660830, 316169 / 330415],
 ]
 
+// Linear Display P3 to XYZ (D65), for asking whether a P3 colour fits sRGB.
+const LINEAR_P3_TO_XYZ: readonly Vector[] = [
+  [608311 / 1250200, 189793 / 714400, 198249 / 1000160],
+  [35783 / 156275, 247089 / 357200, 198249 / 2500400],
+  [0, 32229 / 714400, 5220557 / 5000800],
+]
+
 function encode(channel: number): number {
   const clamped = Math.min(1, Math.max(0, channel))
   return clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055
@@ -370,4 +377,45 @@ export function colorToHex(color: ResolvedColor): string {
   const byte = (channel: number) => Math.round(Math.min(1, Math.max(0, channel)) * 255).toString(16).padStart(2, '0')
   const rgb = `#${byte(color.r)}${byte(color.g)}${byte(color.b)}`
   return color.alpha < 1 ? `${rgb}${byte(color.alpha)}` : rgb
+}
+
+/** The sRGB transfer function, both ways, extended past 0-1 with its sign. */
+function decode(channel: number): number {
+  const magnitude = Math.abs(channel)
+  return Math.sign(channel) * (magnitude <= 0.04045 ? magnitude / 12.92 : ((magnitude + 0.055) / 1.055) ** 2.4)
+}
+function encodeUnclamped(channel: number): number {
+  const magnitude = Math.abs(channel)
+  return Math.sign(channel) * (magnitude <= 0.0031308 ? 12.92 * magnitude : 1.055 * magnitude ** (1 / 2.4) - 0.055)
+}
+
+/**
+ * Whether sRGB holds the colour, so its hex draws it as the browser does.
+ *
+ * An sRGB colour always does. A Display P3 one does when each sRGB channel
+ * lands within rounding of the 8-bit range: then `colorToHex` of the same
+ * value resolved with `space: 'srgb'` is the colour, not a clamp of it. A
+ * renderer that can draw P3 needs the P3 value only for the colours that fail
+ * this: 82 of the default palette's 242. (95 leave sRGB at all, but 13 pale
+ * tints by less than half a step, which their hex already draws.) See #47.
+ */
+export function isInSrgbGamut(color: ResolvedColor): boolean {
+  if (color.space === 'srgb')
+    return true
+  const linear = multiply(XYZ_TO_LINEAR_SRGB, multiply(LINEAR_P3_TO_XYZ, [decode(color.r), decode(color.g), decode(color.b)]))
+  const slack = 0.5 / 255
+  return linear.every(channel => encodeUnclamped(channel) >= -slack && encodeUnclamped(channel) <= 1 + slack)
+}
+
+/**
+ * The colour as a CSS value a native renderer reads: `#rrggbb[aa]` for sRGB,
+ * `color(display-p3 r g b[ / a])` for Display P3 (#47). Channels go to four
+ * places, finer than an 8-bit step.
+ */
+export function colorToCSS(color: ResolvedColor): string {
+  if (color.space === 'srgb')
+    return colorToHex(color)
+  const number = (channel: number) => String(Number(Math.min(1, Math.max(0, channel)).toFixed(4)))
+  const channels = `${number(color.r)} ${number(color.g)} ${number(color.b)}`
+  return color.alpha < 1 ? `color(display-p3 ${channels} / ${number(color.alpha)})` : `color(display-p3 ${channels})`
 }
