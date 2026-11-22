@@ -1,3 +1,17 @@
+[Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.27...v0.3.28)
+
+## 🐛 Bug Fixes
+
+- **forms**: draw the select caret in the text's colour ([a3133c0](https://github.com/stacksjs/ts-css/commit/a3133c0)) _(by glennmichael123 <gtorregosa@gmail.com>)_ ([#45](https://github.com/stacksjs/ts-css/issues/45), [#6](https://github.com/stacksjs/ts-css/issues/6))
+
+## 🔧 Chores
+
+- release v0.3.28 ([c327d4d](https://github.com/stacksjs/ts-css/commit/c327d4d)) _(by glennmichael123 <gtorregosa@gmail.com>)_
+
+## Contributors
+
+- _glennmichael123 <gtorregosa@gmail.com>_
+
 [Compare changes](https://github.com/stacksjs/ts-css/compare/v0.3.26...v0.3.27)
 
 ## ✨ Features
