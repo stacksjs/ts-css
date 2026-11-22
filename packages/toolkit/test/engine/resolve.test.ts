@@ -238,3 +238,55 @@ describe('resolveColor with variables', () => {
     expect(colorToHex(resolveColor(value, { variables: gen.variables() })!)).toBe('#ffffff')
   })
 })
+
+/**
+ * `rgb()` and `rgba()` (stacksjs/ts-css#46). The engine writes black and white
+ * with opacity this way, so a renderer that could not read it could not
+ * resolve two of the engine's own most common colours.
+ */
+describe('resolveColor with rgb()', () => {
+  const gen = () => new CSSGenerator(defaultConfig)
+  const viaEngine = (className: string) => {
+    const value = String(Object.values(resolveUtility(className, gen())[0]!.properties)[0])
+    return colorToHex(resolveColor(value)!)
+  }
+
+  it('should read the engine\'s own black and white with opacity', () => {
+    expect(viaEngine('text-black/50')).toBe('#00000080')
+    expect(viaEngine('bg-white/10')).toBe('#ffffff1a')
+  })
+
+  it('should read an arbitrary rgb() value', () => {
+    expect(viaEngine('bg-[rgb(1_2_3)]')).toBe('#010203')
+    expect(viaEngine('bg-[rgba(1,2,3,0.5)]')).toBe('#01020380')
+  })
+
+  it('should read the legacy comma syntax', () => {
+    expect(colorToHex(resolveColor('rgb(1, 2, 3)')!)).toBe('#010203')
+    expect(resolveColor('rgba(10, 20, 30, 0.25)')!.alpha).toBe(0.25)
+  })
+
+  it('should read the modern space syntax with an optional alpha', () => {
+    expect(colorToHex(resolveColor('rgb(1 2 3)')!)).toBe('#010203')
+    expect(resolveColor('rgb(1 2 3 / 50%)')!.alpha).toBe(0.5)
+  })
+
+  it('should read percentage channels', () => {
+    expect(colorToHex(resolveColor('rgb(100% 0% 0%)')!)).toBe('#ff0000')
+  })
+
+  /** rgb() is already sRGB, like hex: no conversion, whatever space was asked for. */
+  it('should leave rgb() in sRGB', () => {
+    expect(resolveColor('rgb(1 2 3)', { space: 'display-p3' })!.space).toBe('srgb')
+  })
+
+  it('should read rgb() through the color-mix opacity form', () => {
+    expect(colorToHex(resolveColor('color-mix(in srgb, rgb(0 0 0) 50%, transparent)')!)).toBe('#00000080')
+  })
+
+  /** Reported rather than guessed: a renderer must not draw a colour it misread. */
+  it('should not resolve a malformed rgb()', () => {
+    for (const value of ['rgb(1_2_3)', 'rgb(1, 2)', 'rgb(a b c)', 'rgb(1 2 3 /)', 'rgb()'])
+      expect(resolveColor(value)).toBeUndefined()
+  })
+})

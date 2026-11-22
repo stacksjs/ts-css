@@ -190,6 +190,49 @@ function parseAlpha(value: string | undefined): number {
   return value.endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value)
 }
 
+/** `rgb(…)` / `rgba(…)`, either syntax; the arguments are read by `parseRgb`. */
+const RGB = /^rgba?\((.*)\)$/i
+const NUMBER = /^-?(?:\d+\.?\d*|\.\d+)%?$/
+
+/** A channel or an alpha, `0-1`: a number against `scale`, or a percentage. */
+function fraction(value: string, scale: number): number | undefined {
+  if (!NUMBER.test(value))
+    return undefined
+  const amount = Number.parseFloat(value)
+  return Math.min(1, Math.max(0, value.endsWith('%') ? amount / 100 : amount / scale))
+}
+
+/**
+ * The arguments of `rgb()`/`rgba()` in either syntax: legacy commas
+ * (`1, 2, 3, 0.5`) or the modern space-separated form with an optional
+ * `/ alpha` (`1 2 3 / 50%`). Undefined unless there are exactly three numeric
+ * channels -- so `rgb(1_2_3)`, whose underscores were never turned into
+ * spaces, is reported rather than guessed at.
+ */
+function parseRgb(args: string): ResolvedColor | undefined {
+  let channels: string[]
+  let alpha: string | undefined
+  if (args.includes(',')) {
+    const parts = args.split(',').map(part => part.trim())
+    if (parts.length !== 3 && parts.length !== 4)
+      return undefined
+    channels = parts.slice(0, 3)
+    alpha = parts[3]
+  }
+  else {
+    const [color = '', after] = args.split('/')
+    channels = color.trim().split(/\s+/)
+    alpha = after?.trim()
+    if (channels.length !== 3 || alpha === '')
+      return undefined
+  }
+  const [r, g, b] = channels.map(channel => fraction(channel, 255))
+  const a = alpha === undefined ? 1 : fraction(alpha, 1)
+  if (r === undefined || g === undefined || b === undefined || a === undefined)
+    return undefined
+  return { space: 'srgb', r, g, b, alpha: a }
+}
+
 const OKLCH = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)(?:deg)?\s*(?:\/\s*([\d.]+%?))?\s*\)$/i
 const HEX = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i
 
@@ -284,6 +327,13 @@ function resolveColorAt(value: string, options: ColorOptions, depth: number): Re
     const channel = (at: number) => Number.parseInt(digits.slice(at, at + 2), 16) / 255
     return { space: 'srgb', r: channel(0), g: channel(2), b: channel(4), alpha: digits.length === 8 ? channel(6) : 1 }
   }
+
+  // rgb() is sRGB already, as hex is. The engine writes black and white with
+  // opacity this way (`text-black/50` is `rgb(0 0 0 / 0.5)`), so without it a
+  // renderer could not read two of its most common colours (#46).
+  const rgb = RGB.exec(trimmed)
+  if (rgb !== null)
+    return parseRgb(rgb[1]!)
 
   const oklch = OKLCH.exec(trimmed)
   if (oklch !== null) {
