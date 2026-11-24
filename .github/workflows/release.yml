@@ -41,7 +41,7 @@ jobs:
       - name: Publish to npm
         run: pantry publish --npm --access public
         env:
-          PANTRY_REGISTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
+          PANTRY_TOKEN: ${{ secrets.PANTRY_TOKEN }}
 
       - name: Create GitHub Release
         uses: home-lang/pantry/packages/action@main
