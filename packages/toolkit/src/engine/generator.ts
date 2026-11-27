@@ -3354,7 +3354,16 @@ export class CSSGenerator {
   */
   private buildSelector(parsed: ParsedClass): string {
     let selector = `.${this.escapeSelector(this.shortcutSelectorRaw ?? parsed.raw)}`
-    let prefix = ''
+    // What the rule asks about outside the element, kept apart so stacked
+    // variants all hold. Each of these used to set one shared prefix, so the
+    // last replaced the rest: `dark:group-hover:x` lost its `.dark `, applied
+    // in light mode too, and lost to a later light-mode group-hover rule.
+    // The theme (dark/light) is outermost, on the root; ancestor conditions
+    // (group-*, in-*) add up inside it; a peer condition is the element's
+    // sibling, so it sits next to the element.
+    let theme = ''
+    let ancestors = ''
+    let sibling = ''
 
     const variants = parsed.variants
     const variantsLen = variants.length
@@ -3428,7 +3437,7 @@ export class CSSGenerator {
           continue
         }
         if (this.variantEnabled[variant]) {
-          prefix = prefixSelector
+          theme = prefixSelector
         }
         continue
       }
@@ -3464,7 +3473,7 @@ export class CSSGenerator {
         if (this.variantEnabled.in) {
           const condition = ancestorConditionSelector(variant.slice(3))
           if (condition !== undefined)
-            prefix = `:where(${condition}) `
+            ancestors += `:where(${condition}) `
         }
         continue
       }
@@ -3478,7 +3487,7 @@ export class CSSGenerator {
           const group = name ? `.group\\/${name}` : '.group'
           const condition = groupConditionSelector(groupVariant)
           if (condition !== undefined)
-            prefix = `${group}${condition} `
+            ancestors += `${group}${condition} `
         }
         continue
       }
@@ -3486,7 +3495,7 @@ export class CSSGenerator {
       if (variant.charCodeAt(0) === 103 && variant.startsWith('group/')) { // 'g' = 103
         if (this.variantEnabled.group) {
           const groupName = variant.slice(6)
-          prefix = `.group\\/${groupName} `
+          ancestors += `.group\\/${groupName} `
         }
         continue
       }
@@ -3499,7 +3508,7 @@ export class CSSGenerator {
           const peer = name ? `.peer\\/${name}` : '.peer'
           const condition = groupConditionSelector(peerVariant)
           if (condition !== undefined)
-            prefix = `${peer}${condition} ~ `
+            sibling = `${peer}${condition} ~ `
         }
         continue
       }
@@ -3507,7 +3516,7 @@ export class CSSGenerator {
       if (variant.charCodeAt(0) === 112 && variant.startsWith('peer/')) { // 'p' = 112
         if (this.variantEnabled.peer) {
           const peerName = variant.slice(5)
-          prefix = `.peer\\/${peerName} ~ `
+          sibling = `.peer\\/${peerName} ~ `
         }
         continue
       }
@@ -3552,7 +3561,7 @@ export class CSSGenerator {
       }
     }
 
-    return prefix + selector
+    return theme + ancestors + sibling + selector
   }
 
   /**
