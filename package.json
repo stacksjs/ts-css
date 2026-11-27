@@ -53,8 +53,8 @@
     "prepare": "bun run build:toolkit"
   },
   "devDependencies": {
-    "@stacksjs/logsmith": "^0.2.14",
-    "better-dx": "^0.2.15"
+    "@stacksjs/logsmith": "^0.2.16",
+    "better-dx": "^0.2.40"
   },
   "git-hooks": {
     "pre-commit": {
@@ -68,7 +68,7 @@
     "packages/*"
   ],
   "overrides": {
-    "bunfig": "0.15.17",
+    "bunfig": "0.15.21",
     "typescript": "^7.0.2"
   }
 }
